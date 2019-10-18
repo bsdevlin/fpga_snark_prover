@@ -5,7 +5,7 @@
   where each one calculates in parallel the result of the multiexp.
   Finally we add all the results together to get the multiexp result
 
-  Copyright (C) 2019  Benjamin Devlin and Ethereum Foundation
+  Copyright (C) 2019  Benjamin Devlin
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
