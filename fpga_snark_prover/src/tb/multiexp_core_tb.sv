@@ -57,17 +57,24 @@ initial begin
   in_if.val = 0;
   #(40*CLK_PERIOD);
 
-  in_s = new[2];
+  in_s = new[3];
   in_s[0] = 256'd2;
-  in_s[1] = 256'd2;
+  in_s[1] = 256'd40;
+  in_s[2] = 256'd66;
 
-  in_p = new[2];
+  in_p = new[3];
   in_p[0] = G1_JB;
-  in_p[1] = G1_JB;
+  in_p[1] = point_mult(256'd2, G1_JB);
+  in_p[2] = point_mult(256'd3, G1_JB);
 
-  out_p = multiexp_batch(in_s,in_p);
+  $display("multiexp");
+  print_af_point(to_affine(multiexp(in_s, in_p)));
 
-  print_fp2_af_point(to_affine(out_p));
+  $display("multiexp_batch");
+  print_af_point(to_affine(multiexp_batch(in_s, in_p)));
+
+  $display("multiexp_window");
+  print_af_point(to_affine(multiexp_window(in_s, in_p)));
 
   #1us $finish();
 end

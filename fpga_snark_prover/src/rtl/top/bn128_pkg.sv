@@ -1,5 +1,5 @@
 /*
-  Package for the bn128 curve
+  Package for the bn128 curve https://github.com/ethereum/py_ecc/blob/master/py_ecc/bn128/bn128_curve.py
 
   Copyright (C) 2019  Benjamin Devlin
 
@@ -22,7 +22,8 @@ package bn128_pkg;
   /////////////////////////// Parameters ///////////////////////////
   localparam DAT_BITS = 256;
   localparam [DAT_BITS-1:0] P = 256'd21888242871839275222246405745257275088696311157297823662689037894645226208583;
-  localparam WINDOW_BITS = 3;
+  localparam WINDOW_BITS = 4;
+  localparam WINDOW_ENT = (1 << WINDOW_BITS) - 1;
 
 
   /////////////////////////// Typedefs ///////////////////////////
@@ -54,15 +55,15 @@ package bn128_pkg;
   } fp2_af_point_t;
 
   // Generator points
-  fe_t G1X = 'd1;
-  fe_t G1Y = 'h2;
+  fe_t G1X = 256'd1;
+  fe_t G1Y = 256'h2;
 
   af_point_t G1_AF = '{x:G1X, y:G1Y};
-  jb_point_t G1_JB = '{x:G1X, y:G1Y, z:'d1};
+  jb_point_t G1_JB = '{x:G1X, y:G1Y, z:256'd1};
 
   fe2_t G2X = {'d10857046999023057135944570762232829481370756359578518086990519993285655852781, 'd11559732032986387107991004021392285783925812861821192530917403151452391805634};
   fe2_t G2Y = {'d8495653923123431417604973247489272438418190587263600148770280649306958101930, 'd4082367875863433681332203403145435568316851327593401208105741076214120093531};
-  fe2_t FE2_ONE = {'d0, 'd1};
+  fe2_t FE2_ONE = {256'd0, 256'd1};
 
   fp2_af_point_t G2_AF = '{x:G2X, y:G2Y};
   fp2_jb_point_t G2_JB = '{x:G2X, y:G2Y, z:FE2_ONE};
@@ -103,6 +104,51 @@ package bn128_pkg;
   function fe2_t fe2_mul(fe2_t a, b);
     fe2_mul[0] = fe_sub(fe_mul(a[0], b[0]), fe_mul(a[1], b[1]));
     fe2_mul[1] = fe_add(fe_mul(a[0], b[1]), fe_mul(a[1], b[0]));
+  endfunction
+
+   // Inversion using extended euclidean algorithm
+  function fe_t fe_inv(fe_t a, b = 1);
+     fe_t u, v;
+     logic [$bits(fe_t):0] x1, x2;
+
+     u = a; v = P;
+     x1 = b; x2 = 0;
+     while (u != 1 && v != 1) begin
+       while (u % 2 == 0) begin
+         u = u / 2;
+         if (x1 % 2 == 0)
+           x1 = x1 / 2;
+         else
+           x1 = (x1 + P) / 2;
+       end
+       while (v % 2 == 0) begin
+         v = v / 2;
+         if (x2 % 2 == 0)
+           x2 = x2 / 2;
+         else
+           x2 = (x2 + P) / 2;
+       end
+       if (u >= v) begin
+         u = u - v;
+         x1 = fe_sub(x1, x2);
+       end else begin
+         v = v - u;
+         x2 = fe_sub(x2, x1);
+       end
+     end
+     if (u == 1)
+       return x1;
+     else
+       return x2;
+  endfunction
+
+  function fe2_t fe2_inv(fe2_t a);
+    fe_t factor, t0, t1;
+    t0 = fe_mul(a[0], a[0]);
+    t1 = fe_mul(a[1], a[1]);
+    factor = fe_inv(fe_add(t0, t1));
+    fe2_inv[0]= fe_mul(a[0], factor);
+    fe2_inv[1] = fe_mul(fe_sub(P, a[1]), factor);
   endfunction
 
   // Function for point doubling
@@ -174,11 +220,9 @@ package bn128_pkg;
   // Function for G1 multiexp, takes an array of scalars and points
   function jb_point_t multiexp(input logic [DAT_BITS-1:0] s [], jb_point_t p []);
     jb_point_t res;
-    res.x = 'd0;
-    res.y = 'd0;
-    res.z = 'd1;
+    res = 0;
     for (int i = 0; i < s.size(); i++) begin
-      res = add_jb_point(res, point_mult(s[i], p[i]));
+      res = add_jb_point(point_mult(s[i], p[i]), res);
     end
     return res;
   endfunction
@@ -186,49 +230,62 @@ package bn128_pkg;
   // Function for G1 multiexp, using batched doubling
   function jb_point_t multiexp_batch(input logic [DAT_BITS-1:0] s [], jb_point_t p []);
     jb_point_t res;
-    res.x = 'd0;
-    res.y = 'd0;
-    res.z = 'd1;
+    res = 0;
     for (int i = DAT_BITS-1; i >= 0; i--) begin
       res = dbl_jb_point(res);
       for (int j = 0; j < s.size(); j++) begin
         if (s[j][i] == 1) begin
-          res = add_jb_point(res, p[i]);
+          res = add_jb_point(p[j], res);
         end
       end
     end
     return res;
   endfunction
-/*
+
   // Function for G1 multiexp, using batch doubles and window method
   function jb_point_t multiexp_window(input logic [DAT_BITS-1:0] s [], jb_point_t p []);
     // First do pre-computation
-    jb_point_t [(1<<WINDOW_BITS)-1:0] p_prec [];
+    jb_point_t p_prec [];
     jb_point_t res;
+    int j, i, p_val;
+    i = 0;
+    j = 0;
+    p_val = 0;
+    p_prec = new[WINDOW_ENT*s.size()];
 
-    for (int i = 0; i < (1<<WINDOW_BITS); i++) begin
-      jb_point_t [(1<<WINDOW_BITS)-1:0] p_prec_tmp;
-      p_prec_tmp[i] = new[point_mult(i+1, p[p_prec.size()])];
+    // Pre computation stage
+    for (i = 0; i < p.size(); i++) begin
+      p_prec[(WINDOW_ENT*i)] = p[i];
+      for (j = 2; j <= WINDOW_ENT; j++) begin
+        p_prec[(WINDOW_ENT*i)+(j-1)] = add_jb_point(p_prec[(WINDOW_ENT*i)+(j-2)], p_prec[WINDOW_ENT*i]);
+      end
     end
 
-    res.x = 'd0;
-    res.y = 'd0;
-    res.z = 'd1;
-    for (int i = DAT_BITS-1; i >= 0; i--) begin
-      res = dbl_jb_point(res);
-      for (int j = 0; j < s.size(); j++) begin
+    j = DAT_BITS-1;
+    res = 0;
 
+    while (j >= 0) begin
+      i = 0;
+      while (i < WINDOW_BITS) begin
+        res = dbl_jb_point(res);
+        i++;
+        if (i > j) break;
       end
-      res = add_jb_point(res, point_mult(s[i], p[i]));
+
+      for (int i = 0; i < s.size(); i++) begin
+        // Get value to use for window
+        p_val = 0;
+        for (int k = 0; k < WINDOW_BITS; k++) begin
+          if (j-k < 0) break;
+          p_val += s[i][j-k] << (WINDOW_BITS-k-1);
+        end
+        if (p_val > 0)
+          res = add_jb_point(res, p_prec[(i*WINDOW_ENT) + p_val-1]);
+      end
+      j = j - WINDOW_BITS;
     end
     return res;
   endfunction
-
-*/
-
-  // Function for G1 multiexp, using w-NAF method
-
-
 
 
   // Functions for converting to affine, and printing
@@ -239,15 +296,6 @@ package bn128_pkg;
     z_ = fe_mul(z_, p.z);
     to_affine.y = fe_mul(p.y, fe_inv(z_));
   endfunction
-
-  function fp2_af_point_t fp2_to_affine(fp2_jb_point_t p);
-    fe2_t z_;
-    z_ = fe2_mul(p.z, p.z);
-    fp2_to_affine.x = fe2_mul(p.x, fe2_inv(z_));
-    z_ = fe2_mul(z_, p.z);
-    fp2_to_affine.y = fe2_mul(p.y, fe2_inv(z_));
-  endfunction
-
 
   task print_jb_point(jb_point_t p);
     $display("x:0x%h", p.x);
