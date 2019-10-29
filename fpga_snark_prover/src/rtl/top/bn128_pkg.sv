@@ -25,6 +25,12 @@ package bn128_pkg;
   localparam WINDOW_BITS = 4;
   localparam WINDOW_ENT = (1 << WINDOW_BITS) - 1;
 
+  // Parameters used during Montgomery multiplication
+  localparam [255:0] MONT_MASK = 256'hffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+  localparam [255:0] MONT_FACTOR = 256'hf57a22b791888c6bd8afcbd01833da809ede7d651eca6ac987d20782e4866389;
+  localparam int MONT_REDUCE_BITS = 256;
+  localparam [250:0] MONT_RECIP_SQ = 251'h6d89f71cab8351f47ab1eff0a417ff6b5e71911d44501fbf32cfc5b538afa89; // Required for conversion into Montgomery form
+
 
   /////////////////////////// Typedefs ///////////////////////////
   typedef logic [DAT_BITS-1:0] fe_t;
@@ -287,6 +293,21 @@ package bn128_pkg;
     return res;
   endfunction
 
+  // Montgomery multiplication in fe
+  function fe_t fe_mul_mont(fe_t a, b);
+    logic [$bits(fe_t)*2:0] m_, tmp;
+    m_ = a * b;
+    tmp = ((m_ & MONT_MASK) * MONT_FACTOR) & MONT_MASK;
+    fe_mul_mont = (m_ + tmp * P) >> MONT_REDUCE_BITS;
+  endfunction
+
+  function fe_t fe_to_mont(fe_t a);
+    fe_to_mont = fe_mul_mont(a, MONT_RECIP_SQ);
+  endfunction
+
+  function fe_t fe_from_mont(fe_t a);
+    fe_from_mont = fe_mul_mont(a, 256'd1);
+  endfunction
 
   // Functions for converting to affine, and printing
   function af_point_t to_affine(jb_point_t p);
