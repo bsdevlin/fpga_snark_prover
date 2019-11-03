@@ -297,8 +297,11 @@ package bn128_pkg;
   function fe_t fe_mul_mont(fe_t a, b);
     logic [$bits(fe_t)*2:0] m_, tmp;
     m_ = a * b;
-    tmp = ((m_ & MONT_MASK) * MONT_FACTOR) & MONT_MASK;
-    fe_mul_mont = (m_ + tmp * P) >> MONT_REDUCE_BITS;
+    tmp = (m_ & MONT_MASK) * MONT_FACTOR;
+    tmp = tmp & MONT_MASK;
+    tmp = tmp * P;
+    tmp = tmp + m_;
+    fe_mul_mont = tmp >> MONT_REDUCE_BITS;
   endfunction
 
   function fe_t fe_to_mont(fe_t a);
