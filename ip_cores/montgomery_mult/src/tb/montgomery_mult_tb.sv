@@ -17,7 +17,7 @@
 `timescale 1ps/1ps
 `define SIMULATION
 
-module multiplier_tb ();
+module montgomery_mult_tb ();
 import common_pkg::*;
 
 localparam CLK_PERIOD = 100;

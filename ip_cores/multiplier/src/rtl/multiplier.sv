@@ -23,7 +23,8 @@ module multiplier #(
   parameter DAT_BITS,
   parameter CTL_BITS,
   parameter A_DSP_W = 26,
-  parameter B_DSP_W = 17
+  parameter B_DSP_W = 17,
+  parameter AGRID_W = 32
 )(
   input i_clk,
   input i_rst,
@@ -33,7 +34,8 @@ module multiplier #(
 
 localparam int NUM_COL = (DAT_BITS+A_DSP_W-1)/A_DSP_W;
 localparam int NUM_ROW = (DAT_BITS+B_DSP_W-1)/B_DSP_W;
-localparam int BIT_LEN = A_DSP_W+B_DSP_W+$clog2(NUM_ROW);
+localparam int NUM_GRID = (2*DAT_BITS+AGRID_W-1)/AGRID_W;
+localparam int BIT_LEN = A_DSP_W+B_DSP_W+$clog2(NUM_GRID);
 localparam int PIPE = 4;
 
 logic [A_DSP_W*NUM_COL-1:0] dat_a;
@@ -41,7 +43,7 @@ logic [B_DSP_W*NUM_ROW-1:0] dat_b;
 (* DONT_TOUCH = "yes" *) logic [A_DSP_W+B_DSP_W-1:0] mul_grid [NUM_COL][NUM_ROW];
 logic [(A_DSP_W+B_DSP_W+DAT_BITS*2)-1:0] mul_grid_flat [NUM_COL*NUM_ROW];
 
-logic [BIT_LEN-1:0] accum_grid [NUM_COL];
+logic [BIT_LEN-1:0] accum_grid [NUM_GRID];
 logic [(DAT_BITS*2)-1:0] mul_res;
 
 logic [PIPE-1:0] val, sop, eop;
@@ -107,21 +109,22 @@ end
 
 // Accumulate the columns
 generate
-  for (gx = 0; gx < NUM_COL; gx++) begin: GEN_ACCUM_X
+  for (gx = 0; gx < NUM_GRID; gx++) begin: GEN_ACCUM_GRID
 
-    logic [BIT_LEN-1:0] terms [NUM_ROW];
+    logic [BIT_LEN-1:0] terms [NUM_COL*NUM_ROW];
     logic [BIT_LEN-1:0] c;
     logic [BIT_LEN-1:0] s;
 
-    for (gy = 0; gy < NUM_ROW; gy++) begin: GEN_ACCUM_Y
+    for (gy = 0; gy < NUM_COL*NUM_ROW; gy++) begin: GEN_ACCUM_VAL
+
       always_comb begin
-        terms[gy] = {{1'b0{$clog2(NUM_ROW)}}, mul_grid_flat[(gx*NUM_ROW)+gy][(gx*A_DSP_W)+(gy*B_DSP_W) +: A_DSP_W+B_DSP_W]};
+        terms[gy] =  mul_grid_flat[gy][gx*AGRID_W +: AGRID_W];
       end
     end
 
     compressor_tree_3_to_2 #(
-      .NUM_ELEMENTS ( NUM_ROW  ),
-      .BIT_LEN      ( BIT_LEN )
+      .NUM_ELEMENTS ( NUM_COL*NUM_ROW  ),
+      .BIT_LEN      ( BIT_LEN          )
     )
     compressor_tree_3_to_2_i (
       .terms ( terms ),
@@ -141,8 +144,8 @@ endgenerate
 // This stage propagates the carry
 always_comb begin
   mul_res = 0;
-  for (int i = 0; i < NUM_COL; i++) begin
-    mul_res += accum_grid[i] << i*(A_DSP_W+B_DSP_W);
+  for (int i = 0; i < NUM_GRID; i++) begin
+    mul_res += accum_grid[i] << i*AGRID_W;
   end
 end
 
