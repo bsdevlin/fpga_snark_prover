@@ -2,7 +2,7 @@
   Calculates a*b mod n, using Montgomery reduction.
   Does not perform final check of subtracting modulus,
   so you should ensure the reduction values are calculated
-  with this in mind (increase bits by 2)
+  with this in mind (increase REDUCE_BITS by 2).
 
   Copyright (C) 2019  Benjamin Devlin
 
@@ -23,7 +23,6 @@
 module montgomery_mult #(
   parameter                DAT_BITS,
   parameter                CTL_BITS = 8,
-  parameter                IN_BITS = DAT_BITS*2,
   parameter                REDUCE_BITS,
   parameter [DAT_BITS-1:0] FACTOR,
   parameter [DAT_BITS-1:0] MASK,
@@ -100,30 +99,30 @@ always_ff @ (posedge i_clk) begin
 end
 
 // Stage 3 multiplication
-always_comb i_mult_if_1.rdy = ~o_mult_if_2.val || (o_mult_if_2.val && o_mult_if_2.rdy);
+always_comb i_mul_if_1.rdy = ~o_mul_if_2.val || (o_mul_if_2.val && o_mul_if_2.rdy);
 
 always_ff @ (posedge i_clk) begin
   if (i_rst) begin
-    o_mult_if_2.reset_source();
+    o_mul_if_2.reset_source();
   end else begin
-    if (o_mult_if_2.rdy) o_mult_if_2.val <= 0;
+    if (o_mul_if_2.rdy) o_mul_if_2.val <= 0;
 
-    o_mult_if_1.sop <= 1;
-    o_mult_if_1.eop <= 1;
+    o_mul_if_2.sop <= 1;
+    o_mul_if_2.eop <= 1;
 
-    if (i_mult_if_1.rdy) begin
-      o_mult_if_2.val <= i_mult_if_1.val;
-      o_mult_if_2.ctl <= i_mult_if_1.ctl;
-      o_mult_if_2.dat[0 +: DAT_BITS] <= i_mul_if_1.dat & MASK;
-      o_mult_if_2.dat[DAT_BITS +: DAT_BITS] <= P;
+    if (i_mul_if_1.rdy) begin
+      o_mul_if_2.val <= i_mul_if_1.val;
+      o_mul_if_2.ctl <= i_mul_if_1.ctl;
+      o_mul_if_2.dat[0 +: DAT_BITS] <= i_mul_if_1.dat & MASK;
+      o_mul_if_2.dat[DAT_BITS +: DAT_BITS] <= P;
     end
   end
 end
 
 // Stage 4 addition
 always_comb begin
-  i_mult_if_2.rdy = (o_add_if.val && o_add_if.rdy) || ~o_add_if.val;
-  fifo_out_if.rdy = i_mult_if_2.rdy;
+  i_mul_if_2.rdy = (o_add_if.val && o_add_if.rdy) || ~o_add_if.val;
+  fifo_out_if.rdy = o_add_if.val && o_add_if.rdy;
 end
 
 always_ff @ (posedge i_clk) begin
@@ -135,10 +134,10 @@ always_ff @ (posedge i_clk) begin
     o_add_if.sop <= 1;
     o_add_if.eop <= 1;
 
-    if (i_mult_if_2.rdy) begin
-      o_add_if.val <= i_mult_if_2.val;
-      o_add_if.ctl <= i_mult_if_2.ctl;
-      o_add_if.dat[0 +: 2*DAT_BITS] <= i_mult_if_2.dat;
+    if (i_mul_if_2.rdy) begin
+      o_add_if.val <= i_mul_if_2.val;
+      o_add_if.ctl <= i_mul_if_2.ctl;
+      o_add_if.dat[0 +: 2*DAT_BITS] <= i_mul_if_2.dat;
       o_add_if.dat[2*DAT_BITS +: 2*DAT_BITS] <= fifo_out_if.dat;
     end
   end

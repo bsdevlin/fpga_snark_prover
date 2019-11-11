@@ -76,6 +76,19 @@ initial begin
   $display("multiexp_window");
   print_af_point(to_affine(multiexp_window(in_s, in_p)));
 
+  begin
+    fe_t a, b,c;
+    a = 256'd1157920892373161954235709850087907853269984665640564039457584007913129639935;
+    b = 256'd1150892373161954235709850087907853269984665640564039457584007913129639935;
+    a = fe_to_mont(a);
+    b = fe_to_mont(b);
+    c = fe_mul_mont(a, b);
+    c = fe_from_mont(c);
+    //21341727265027142880471099517246738950833759092283089473545508915107362335925
+    $display(c);
+
+  end
+
   #1us $finish();
 end
 endmodule
