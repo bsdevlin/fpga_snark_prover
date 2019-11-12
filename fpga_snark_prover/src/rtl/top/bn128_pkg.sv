@@ -26,10 +26,10 @@ package bn128_pkg;
   localparam WINDOW_ENT = (1 << WINDOW_BITS) - 1;
 
   // Parameters used during Montgomery multiplication
-  localparam [255:0] MONT_MASK = 256'hffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-  localparam [255:0] MONT_FACTOR = 256'hf57a22b791888c6bd8afcbd01833da809ede7d651eca6ac987d20782e4866389;
-  localparam int MONT_REDUCE_BITS = 256;
-  localparam [250:0] MONT_RECIP_SQ = 251'h6d89f71cab8351f47ab1eff0a417ff6b5e71911d44501fbf32cfc5b538afa89; // Required for conversion into Montgomery form
+  localparam [255:0] MONT_MASK = 256'h3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+  localparam [255:0] MONT_FACTOR = 256'h357a22b791888c6bd8afcbd01833da809ede7d651eca6ac987d20782e4866389;
+  localparam int MONT_REDUCE_BITS = 254;
+  localparam [250:0] MONT_RECIP_SQ = 256'h373cede4abe9d548fffb64b58bc2d8544d6883a33cb6cc892f4d88722c07f7d; // Required for conversion into Montgomery form
 
 
   /////////////////////////// Typedefs ///////////////////////////
@@ -301,7 +301,9 @@ package bn128_pkg;
     tmp = tmp & MONT_MASK;
     tmp = tmp * P;
     tmp = tmp + m_;
-    fe_mul_mont = tmp >> MONT_REDUCE_BITS;
+    tmp = tmp >> MONT_REDUCE_BITS;
+    if (tmp >= P) tmp -= P;
+    fe_mul_mont = tmp;
   endfunction
 
   function fe_t fe_to_mont(fe_t a);

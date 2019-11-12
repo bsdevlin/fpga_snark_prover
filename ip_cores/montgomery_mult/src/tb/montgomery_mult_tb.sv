@@ -39,6 +39,8 @@ if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS)) mul_o_if [3:0] (clk)
 if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS)) mul_i_if [3:0] (clk);
 if_axi_stream #(.DAT_BITS(DAT_BITS*4), .CTL_BITS(CTL_BITS)) add_o_if (clk);
 if_axi_stream #(.DAT_BITS(1+DAT_BITS*2), .CTL_BITS(CTL_BITS)) add_i_if (clk);
+if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS)) sub_o_if (clk);
+if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS)) sub_i_if (clk);
 
 initial begin
   rst = 0;
@@ -63,7 +65,7 @@ always_ff @ (posedge clk) begin
     add_i_if.reset_source();
   end else begin
     if (add_i_if.rdy) add_i_if.val <= 0;
-  
+
     add_i_if.sop <= 1;
     add_i_if.eop <= 1;
     if (add_o_if.rdy) begin
@@ -94,20 +96,35 @@ montgomery_mult (
   .o_mul_if_2 ( mul_o_if[2] ),
   .i_mul_if_2 ( mul_i_if[2] ),
   .o_add_if ( add_o_if ),
-  .i_add_if ( add_i_if )
+  .i_add_if ( add_i_if ),
+  .o_sub_if ( sub_o_if ),
+  .i_sub_if ( sub_i_if )
 );
 
 adder_pipe # (
   .P   ( 512'd0 ) ,
   .BITS( 512    ),
   .CTL_BITS( CTL_BITS ),
-  .LEVEL( 3 )
-) 
+  .LEVEL( 2 )
+)
 adder_pipe (
   .i_clk ( clk ),
   .i_rst ( rst ),
   .i_add ( add_o_if ),
   .o_add ( add_i_if )
+);
+
+subtractor_pipe # (
+  .P   ( P   ) ,
+  .BITS( 256 ),
+  .CTL_BITS( CTL_BITS ),
+  .LEVEL( 2 )
+)
+subtractor_pipe (
+  .i_clk ( clk ),
+  .i_rst ( rst ),
+  .i_sub ( sub_o_if ),
+  .o_sub ( sub_i_if )
 );
 
 resource_share # (

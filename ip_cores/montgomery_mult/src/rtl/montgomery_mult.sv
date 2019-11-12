@@ -39,7 +39,9 @@ module montgomery_mult #(
   if_axi_stream.source        o_mul_if_2,
   if_axi_stream.sink          i_mul_if_2,
   if_axi_stream.source        o_add_if,
-  if_axi_stream.sink          i_add_if
+  if_axi_stream.sink          i_add_if,
+  if_axi_stream.source        o_sub_if,
+  if_axi_stream.sink          i_sub_if
 );
 
 logic [CTL_BITS-1:0] ctl;
@@ -144,7 +146,30 @@ always_ff @ (posedge i_clk) begin
 end
 
 // Stage 5 shift
-always_comb i_add_if.rdy = (o_mont_mul_if.rdy && o_mont_mul_if.val) || ~o_mont_mul_if.val;
+always_comb i_add_if.rdy = (o_sub_if.rdy && o_sub_if.val) || ~o_sub_if.val;
+
+always_ff @ (posedge i_clk) begin
+  if (i_rst) begin
+    o_sub_if.reset_source();
+    o_sub_if.dat[DAT_BITS +: DAT_BITS] <= P;
+  end else begin
+
+    if (o_sub_if.rdy) o_sub_if.val <= 0;
+
+    o_sub_if.sop <= 1;
+    o_sub_if.eop <= 1;
+
+    if (i_add_if.rdy) begin
+      o_sub_if.val <= i_add_if.val;
+      o_sub_if.ctl <= i_add_if.ctl;
+      o_sub_if.dat[0 +: DAT_BITS] <= i_add_if.dat >> REDUCE_BITS;
+      o_sub_if.dat[DAT_BITS +: DAT_BITS] <= P;
+    end
+  end
+end
+
+// Stage 6 do comparison and subtract if we are greater than modulus
+always_comb i_sub_if.rdy = (o_mont_mul_if.rdy && o_mont_mul_if.val) || ~o_mont_mul_if.val;
 
 always_ff @ (posedge i_clk) begin
   if (i_rst) begin
@@ -156,13 +181,14 @@ always_ff @ (posedge i_clk) begin
     o_mont_mul_if.sop <= 1;
     o_mont_mul_if.eop <= 1;
 
-    if (i_add_if.rdy) begin
-      o_mont_mul_if.val <= i_add_if.val;
-      o_mont_mul_if.ctl <= i_add_if.ctl;
-      o_mont_mul_if.dat <= i_add_if.dat >> REDUCE_BITS;
+    if (i_sub_if.rdy) begin
+      o_mont_mul_if.val <= i_sub_if.val;
+      o_mont_mul_if.ctl <= i_sub_if.ctl;
+      o_mont_mul_if.dat <= i_sub_if.dat;
     end
   end
 end
+
 
 // Fifo to store inputs (as we need to do final add and control)
 axi_stream_fifo #(
