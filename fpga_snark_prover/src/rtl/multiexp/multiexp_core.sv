@@ -3,12 +3,12 @@
   and points, and does the multiplication and addition
   to get multiexp result (single point output).
 
-  On final pass we send in two points with scalar value set to 1,
-  which will just perform point addition.
-
-  We use sliding window method and BRAM
-
   Each core has it's own multiplier, adder, and subtractor units.
+
+  This does not do any pre-calculation.
+
+  We expect a looping stream of point and scalar pairs, from 0 to NUM_IN-1
+  Backpressure is supported in both directions
 
   Copyright (C) 2019  Benjamin Devlin
 
@@ -29,17 +29,14 @@
 module multiexp_core #(
   parameter type FP_TYPE,
   parameter type FE_TYPE,
-  parameter      W_BITS,      // Number of window bits
+  parameter      KEY_BITS,
   parameter      NUM_IN       // Number of points / scalars in memory to operate on
 )(
   input i_clk,
   input i_rst,
-  input        i_val,           // Start the multiexp on scalar and points in memory
-  output logic o_rdy,
-  output logic o_val,           // Output value in memory is valid
-  input        i_rdy,
-  if_ram.source pnt_ram_if,     // Interface to point memory
-  if_ram.source scl_ram_if,     // Interface to scalar memory
+
+  if_axi_stream.sink   i_pnt_scl_if,     // Interface to scalar and point stream pair - {FP_TYPE, FE_TYPE}
+  if_axi_stream.source o_pnt_if,         // Interface for final point output
 
   // Interfaces to arithmetic units
   if_axi_stream.source o_mul_if,
@@ -52,53 +49,107 @@ module multiexp_core #(
 
 localparam DAT_BITS = $bits(FE_TYPE);
 
-// If we are doing pre computation, we need to create the storage RAM
-generate
-  if (W_BITS > 0) begin: GEN_PRE_CALC
-    if_ram #(.RAM_WIDTH($bits(FP_TYPE)), .RAM_DEPTH(NUM_IN*(1 << W_BITS))) ram_pre_calc0_if(.i_clk(i_clk), .i_rst(i_rst));
-    if_ram #(.RAM_WIDTH($bits(FP_TYPE)), .RAM_DEPTH(NUM_IN*(1 << W_BITS))) ram_pre_calc1_if(.i_clk(i_clk), .i_rst(i_rst));
-  end
-endgenerate
 
-FP_TYPE pre_calc_ram_d;
-always_comb ram_pre_calc0_if.d = pre_calc_ram_d;
+if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   add_if_i [1:0] (i_clk);
+if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) add_if_o [1:0] (i_clk);
+if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   sub_if_i [1:0] (i_clk);
+if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) sub_if_o [1:0] (i_clk);
+if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   mul_if_i [1:0] (i_clk);
+if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) mul_if_o [1:0] (i_clk);
 
 
+logic [$clog2(KEY_BITS)-1:0] key_cnt;
+logic [$clog2(NUM_IN)-1:0] in_cnt;
 
 
-// First state we use window method to calculate W_BITS
+FP_TYPE dbl_pnt_o, add_pnt_o;
+logic add_val_o, add_rdy_i, add_rdy_o, add_val_i;
+logic dbl_val_o, dbl_rdy_i, dbl_rdy_o, dbl_val_i;
+
 // Total number of adds required is NUM_IN * (DAT_BITS/W_BITS)
 // Total number of dbls required is DAT_BITS
 
-enum {IDLE, PRE_CALC, MULTI_EXP} state;
+enum {IDLE, DBL_WAIT, ADD, ADD_WAIT} state;
 
 always_ff @ (posedge i_clk) begin
   if (i_rst) begin
     state <= IDLE;
-    o_rdy <= 0;
-    o_val <= 0;
-    ram_pre_calc1_if.reset_source();
-    ram_pre_calc0_if.re <= 1;
-    ram_pre_calc0_if.we <= 0;
-    ram_pre_calc0_if.a <= 0;
-    pre_calc_ram_d <= 0;
+    i_pnt_scl_if.reset_sink();
+    o_pnt_if.reset_source();
+    key_cnt <= 0;
+    in_cnt <= 0;
+    add_rdy_i <= 1;
+    dbl_rdy_i <= 1;
   end else begin
+
+    add_rdy_i <= 1;
+    dbl_rdy_i <= 1;
+
+    o_pnt_if.sop <= 1;
+    o_pnt_if.eop <= 1;
+
+    if (dbl_rdy_o) dbl_val_i <= 0;
+    if (add_rdy_o) add_val_i <= 0;
+    if (o_pnt_if.rdy) o_pnt_if.val <= 0;
+
     case (state)
       IDLE: begin
         o_rdy <= 1;
         o_val <= 0;
-        if (o_rdy && i_val) state <= W_BITS == 0 ? MULTI_EXP : PRE_CALC;
+        key_cnt <= 0;
+        in_cnt <= 0;
+        i_pnt_scl_if.rdy <= 0;
+        if (i_pnt_scl_if.val && ~o_pnt_if.val) begin
+          i_pnt_scl_if.rdy <= 1;
+          o_pnt_if.dat <= 0;
+          state <= ADD;
+        end
       end
-      PRE_CALC: begin
-
+      DBL: begin
+        if (key_cnt == KEY_BITS-1) begin
+          o_pnt_if.val <= 1;
+          state <= IDLE;
+        end else begin
+          dbl_val_i <= 1;
+          state <= DBL_WAIT;
+        end
       end
-      MULTI_EXP: begin
-
+      DBL_WAIT: begin
+        if (dbl_val_o) begin
+          o_pnt_if.dat <= dbl_pnt_o;
+          i_pnt_scl_if.rdy <= 1;
+          key_cnt <= key_cnt + 1;
+          state <= ADD;
+        end
+      end
+      ADD: begin
+        if (i_pnt_scl_if.val && i_pnt_scl_if.rdy) begin
+          in_cnt <= in_cnt + 1;
+          if (i_pnt_scl_if.dat[key_cnt] == 1) begin
+            i_pnt_scl_if.rdy <= 0;
+            add_val_i <= 1;
+            state <= ADD_WAIT;
+          end else if (in_cnt == NUM_IN-1) begin
+            in_cnt <= 0;
+            state <= DBL;
+          end
+        end
+      end
+      ADD_WAIT: begin
+        if (add_val_o == 1) begin
+          if (in_cnt == NUM_IN-1) begin
+            in_cnt <= 0;
+            o_pnt_if.dat <= add_pnt_o;
+            state <= DBL;
+          end else begin
+            i_pnt_scl_if.rdy <= 1;
+            state <= ADD;
+          end
+        end
       end
     endcase
   end
 end
-
 
 ec_point_add
 #(
@@ -108,20 +159,20 @@ ec_point_add
 ec_point_add (
   .i_clk ( i_clk ),
   .i_rst ( i_rst ),
-  .i_p1  (),
-  .i_p2  (),
-  .i_val (),
-  .o_rdy (),
-  .o_p   (),
-  .i_rdy (),
-  .o_val (),
+  .i_p1  ( i_pnt_scl_if.dat[$bits(FE_TYPE) +: $bits(FP_TYPE)] ),
+  .i_p2  ( o_pnt_if.dat ),
+  .i_val ( add_val_i ),
+  .o_rdy ( add_rdy_o ),
+  .o_p   ( add_pnt_o ),
+  .i_rdy ( add_rdy_i ),
+  .o_val ( add_val_o ),
   .o_err (),
-  .o_mul_if (),
-  .i_mul_if (),
-  .o_add_if (),
-  .i_add_if (),
-  .o_sub_if (),
-  .i_sub_if ()
+  .o_mul_if ( mul_if_o[0] ),
+  .i_mul_if ( mul_if_i[0] ),
+  .o_add_if ( add_if_o[0] ),
+  .i_add_if ( add_if_i[0] ),
+  .o_sub_if ( sub_if_o[0] ),
+  .i_sub_if ( sub_if_o[0] )
 );
 
 ec_point_dbl
@@ -130,32 +181,72 @@ ec_point_dbl
   .FE_TYPE ( FE_TYPE )
 )
 ec_point_dbl (
+  .i_clk ( i_clk   ),
+  .i_rst ( i_rst   ),
+  .i_p   ( o_pnt_if.dat ),
+  .i_val ( dbl_val_i ),
+  .o_rdy ( dbl_rdy_o ),
+  .o_p   ( dbl_pnt_o ),
+  .i_rdy ( dbl_rdy_i ),
+  .o_val ( dbl_val_o ),
+  .o_err (),
+  .o_mul_if ( mul_if_o[1] ),
+  .i_mul_if ( mul_if_i[1] ),
+  .o_add_if ( add_if_o[1] ),
+  .i_add_if ( add_if_i[1] ),
+  .o_sub_if ( sub_if_o[1] ),
+  .i_sub_if ( sub_if_o[1] )
+);
+
+resource_share # (
+  .NUM_IN       ( 2          ),
+  .DAT_BITS     ( 2*DAT_BITS ),
+  .CTL_BITS     ( CTL_BITS   ),
+  .OVR_WRT_BIT  ( 0 ),
+  .PIPELINE_IN  ( 0 ),
+  .PIPELINE_OUT ( 0 )
+)
+resource_share_add (
   .i_clk ( i_clk ),
   .i_rst ( i_rst ),
-  .i_p   (),
-  .i_val (),
-  .o_rdy (),
-  .o_p   (),
-  .i_rdy (),
-  .o_val (),
-  .o_err (),
-  .o_mul_if (),
-  .i_mul_if (),
-  .o_add_if (),
-  .i_add_if (),
-  .o_sub_if (),
-  .i_sub_if ()
+  .i_axi ( add_if_o[1:0] ),
+  .o_res ( o_add_if      ),
+  .i_res ( i_add_if      ),
+  .o_axi ( add_if_i[1:0] )
 );
 
-uram_reset #(
-  .RAM_WIDTH($bits(FP_TYPE)),
-  .RAM_DEPTH(NUM_IN*(1 << W_BITS)),
-  .PIPELINES(3)
+resource_share # (
+  .NUM_IN       ( 2          ),
+  .DAT_BITS     ( 2*DAT_BITS ),
+  .CTL_BITS     ( CTL_BITS   ),
+  .OVR_WRT_BIT  ( 0 ),
+  .PIPELINE_IN  ( 0 ),
+  .PIPELINE_OUT ( 0 )
 )
-data_uram (
-  .a ( ram_pre_calc0_if ),
-  .b ( ram_pre_calc1_if )
+resource_share_sub (
+  .i_clk ( i_clk ),
+  .i_rst ( i_rst ),
+  .i_axi ( sub_if_o[1:0] ),
+  .o_res ( o_sub_if      ),
+  .i_res ( i_sub_if      ),
+  .o_axi ( sub_if_i[1:0] )
 );
 
+resource_share # (
+  .NUM_IN       ( 2          ),
+  .DAT_BITS     ( 2*DAT_BITS ),
+  .CTL_BITS     ( CTL_BITS   ),
+  .OVR_WRT_BIT  ( 0 ),
+  .PIPELINE_IN  ( 0 ),
+  .PIPELINE_OUT ( 0 )
+)
+resource_share_mul (
+  .i_clk ( i_clk ),
+  .i_rst ( i_rst ),
+  .i_axi ( mul_if_o[1:0] ),
+  .o_res ( o_mul_if      ),
+  .i_res ( i_mul_if      ),
+  .o_axi ( mul_if_i[1:0] )
+);
 
 endmodule
