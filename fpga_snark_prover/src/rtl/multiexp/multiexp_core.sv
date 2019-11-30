@@ -108,6 +108,7 @@ always_ff @ (posedge i_clk) begin
       end
       DBL: begin
         dbl_val_i <= 1;
+        i_pnt_scl_if.rdy <= 0;
         state <= DBL_WAIT;
       end
       DBL_WAIT: begin
@@ -130,6 +131,7 @@ always_ff @ (posedge i_clk) begin
               o_pnt_if.val <= 1;
               state <= IDLE;
             end else begin
+              i_pnt_scl_if.rdy <= 0;
               state <= DBL;
             end
           end else begin

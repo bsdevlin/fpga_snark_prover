@@ -140,20 +140,19 @@ begin
 
   for (int i = 0; i < NUM_IN; i++) begin
     in_p[i] = jb_to_mont(point_mult(random_vector((DAT_BITS+7)/8) % P, G1_JB));
-    in_s[i] = 8'hffff ;//random_vector((DAT_BITS+7)/8) % P;
+    in_s[i] = random_vector((DAT_BITS+7)/8) % P;
   end
 
   expected = to_affine(multiexp_batch(in_s, in_p));
 
   fork
-    while(1) begin
+    for(int j = 0; j < DAT_BITS; j++) begin
       for (int i = 0; i < NUM_IN; i++) i_pnt_scl_if.put_stream({in_p[i], in_s[i]}, (DAT_IN0+7)/8, i);
     end
     begin
       o_pnt_if.get_stream(get_dat, get_len, 0);
     end
-  join_any
-  disable fork;
+  join
 
   out = get_dat;
 
