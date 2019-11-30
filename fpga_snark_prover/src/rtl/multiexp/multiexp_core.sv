@@ -6,6 +6,8 @@
   Each core has it's own multiplier, adder, and subtractor units.
 
   This does not do any pre-calculation.
+  
+  Uses 8 bits for control muxing.
 
   We expect a looping stream of point and scalar pairs, from 0 to NUM_IN-1
   Backpressure is supported in both directions
@@ -30,7 +32,12 @@ module multiexp_core #(
   parameter type FP_TYPE,
   parameter type FE_TYPE,
   parameter      KEY_BITS,
-  parameter      NUM_IN       // Number of points / scalars in memory to operate on
+  parameter      CTL_BITS,
+  parameter      NUM_IN,      // Number of points / scalars in memory to operate on
+  // If using montgomery form need to override these
+  parameter FE_TYPE CONST_3 = 3,
+  parameter FE_TYPE CONST_4 = 4,
+  parameter FE_TYPE CONST_8 = 8
 )(
   input i_clk,
   input i_rst,
@@ -65,16 +72,12 @@ logic [$clog2(NUM_IN)-1:0] in_cnt;
 FP_TYPE dbl_pnt_o, add_pnt_o;
 logic add_val_o, add_rdy_i, add_rdy_o, add_val_i;
 logic dbl_val_o, dbl_rdy_i, dbl_rdy_o, dbl_val_i;
-
-// Total number of adds required is NUM_IN * (DAT_BITS/W_BITS)
-// Total number of dbls required is DAT_BITS
-
-enum {IDLE, DBL_WAIT, ADD, ADD_WAIT} state;
+enum {IDLE, DBL, DBL_WAIT, ADD, ADD_WAIT} state;
 
 always_ff @ (posedge i_clk) begin
   if (i_rst) begin
     state <= IDLE;
-    i_pnt_scl_if.reset_sink();
+    i_pnt_scl_if.rdy <= 0;
     o_pnt_if.reset_source();
     key_cnt <= 0;
     in_cnt <= 0;
@@ -94,9 +97,7 @@ always_ff @ (posedge i_clk) begin
 
     case (state)
       IDLE: begin
-        o_rdy <= 1;
-        o_val <= 0;
-        key_cnt <= 0;
+        key_cnt <= KEY_BITS-1;
         in_cnt <= 0;
         i_pnt_scl_if.rdy <= 0;
         if (i_pnt_scl_if.val && ~o_pnt_if.val) begin
@@ -106,43 +107,50 @@ always_ff @ (posedge i_clk) begin
         end
       end
       DBL: begin
-        if (key_cnt == KEY_BITS-1) begin
-          o_pnt_if.val <= 1;
-          state <= IDLE;
-        end else begin
-          dbl_val_i <= 1;
-          state <= DBL_WAIT;
-        end
+        dbl_val_i <= 1;
+        state <= DBL_WAIT;
       end
       DBL_WAIT: begin
         if (dbl_val_o) begin
           o_pnt_if.dat <= dbl_pnt_o;
           i_pnt_scl_if.rdy <= 1;
-          key_cnt <= key_cnt + 1;
+          key_cnt <= key_cnt - 1;
           state <= ADD;
         end
       end
       ADD: begin
         if (i_pnt_scl_if.val && i_pnt_scl_if.rdy) begin
-          in_cnt <= in_cnt + 1;
           if (i_pnt_scl_if.dat[key_cnt] == 1) begin
             i_pnt_scl_if.rdy <= 0;
             add_val_i <= 1;
             state <= ADD_WAIT;
           end else if (in_cnt == NUM_IN-1) begin
             in_cnt <= 0;
-            state <= DBL;
+            if (key_cnt == 0) begin
+              o_pnt_if.val <= 1;
+              state <= IDLE;
+            end else begin
+              state <= DBL;
+            end
+          end else begin
+            in_cnt <= in_cnt + 1;
           end
         end
       end
       ADD_WAIT: begin
         if (add_val_o == 1) begin
+          o_pnt_if.dat <= add_pnt_o;
           if (in_cnt == NUM_IN-1) begin
             in_cnt <= 0;
-            o_pnt_if.dat <= add_pnt_o;
-            state <= DBL;
+            if (key_cnt == 0) begin
+              o_pnt_if.val <= 1;
+              state <= IDLE;
+            end else begin
+              state <= DBL;
+            end
           end else begin
             i_pnt_scl_if.rdy <= 1;
+            in_cnt <= in_cnt + 1;
             state <= ADD;
           end
         end
@@ -172,13 +180,16 @@ ec_point_add (
   .o_add_if ( add_if_o[0] ),
   .i_add_if ( add_if_i[0] ),
   .o_sub_if ( sub_if_o[0] ),
-  .i_sub_if ( sub_if_o[0] )
+  .i_sub_if ( sub_if_i[0] )
 );
 
 ec_point_dbl
 #(
   .FP_TYPE ( FP_TYPE ),
-  .FE_TYPE ( FE_TYPE )
+  .FE_TYPE ( FE_TYPE ),
+  .CONST_3 ( CONST_3 ),
+  .CONST_4 ( CONST_4 ),
+  .CONST_8 ( CONST_8 )
 )
 ec_point_dbl (
   .i_clk ( i_clk   ),
@@ -195,14 +206,14 @@ ec_point_dbl (
   .o_add_if ( add_if_o[1] ),
   .i_add_if ( add_if_i[1] ),
   .o_sub_if ( sub_if_o[1] ),
-  .i_sub_if ( sub_if_o[1] )
+  .i_sub_if ( sub_if_i[1] )
 );
 
 resource_share # (
   .NUM_IN       ( 2          ),
   .DAT_BITS     ( 2*DAT_BITS ),
   .CTL_BITS     ( CTL_BITS   ),
-  .OVR_WRT_BIT  ( 0 ),
+  .OVR_WRT_BIT  ( 6 ),
   .PIPELINE_IN  ( 0 ),
   .PIPELINE_OUT ( 0 )
 )
@@ -219,7 +230,7 @@ resource_share # (
   .NUM_IN       ( 2          ),
   .DAT_BITS     ( 2*DAT_BITS ),
   .CTL_BITS     ( CTL_BITS   ),
-  .OVR_WRT_BIT  ( 0 ),
+  .OVR_WRT_BIT  ( 6 ),
   .PIPELINE_IN  ( 0 ),
   .PIPELINE_OUT ( 0 )
 )
@@ -236,7 +247,7 @@ resource_share # (
   .NUM_IN       ( 2          ),
   .DAT_BITS     ( 2*DAT_BITS ),
   .CTL_BITS     ( CTL_BITS   ),
-  .OVR_WRT_BIT  ( 0 ),
+  .OVR_WRT_BIT  ( 6 ),
   .PIPELINE_IN  ( 0 ),
   .PIPELINE_OUT ( 0 )
 )

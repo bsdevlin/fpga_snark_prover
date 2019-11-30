@@ -26,11 +26,17 @@ package bn128_pkg;
   localparam WINDOW_ENT = (1 << WINDOW_BITS) - 1;
 
   // Parameters used during Montgomery multiplication
+  localparam USE_MONT_MULT = "YES";
   localparam [255:0] MONT_MASK = 256'h3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
   localparam [255:0] MONT_FACTOR = 256'h357a22b791888c6bd8afcbd01833da809ede7d651eca6ac987d20782e4866389;
   localparam int MONT_REDUCE_BITS = 254;
   localparam [250:0] MONT_RECIP_SQ = 256'h373cede4abe9d548fffb64b58bc2d8544d6883a33cb6cc892f4d88722c07f7d; // Required for conversion into Montgomery form
 
+  // Constants need to be converted to montgomery form is used
+  localparam CONST_1 = USE_MONT_MULT == "YES" ? fe_to_mont(256'd1) : 256'd1;
+  localparam CONST_3 = USE_MONT_MULT == "YES" ? fe_to_mont(256'd3) : 256'd3;
+  localparam CONST_4 = USE_MONT_MULT == "YES" ? fe_to_mont(256'd4) : 256'd4;
+  localparam CONST_8 = USE_MONT_MULT == "YES" ? fe_to_mont(256'd8) : 256'd8;
 
   /////////////////////////// Typedefs ///////////////////////////
   typedef logic [DAT_BITS-1:0] fe_t;
@@ -74,7 +80,6 @@ package bn128_pkg;
   fp2_af_point_t G2_AF = '{x:G2X, y:G2Y};
   fp2_jb_point_t G2_JB = '{x:G2X, y:G2Y, z:FE2_ONE};
 
-
   /////////////////////////// Functions ///////////////////////////
   // Basic arithmetic functions for fe_t and fe2_t
   function fe_t fe_add(fe_t a, b);
@@ -103,8 +108,12 @@ package bn128_pkg;
 
   function fe_t fe_mul(fe_t a, b);
     logic [$bits(fe_t)*2:0] m_;
-    m_ = a * b;
-    fe_mul = m_ % P;
+    if (USE_MONT_MULT == "YES")
+      fe_mul = fe_mul_mont(a, b);
+    else begin
+      m_ = a * b;
+      fe_mul = m_ % P;
+    end
   endfunction
 
   function fe2_t fe2_mul(fe2_t a, b);
@@ -159,20 +168,22 @@ package bn128_pkg;
 
   // Function for point doubling
   function jb_point_t dbl_jb_point(input jb_point_t p);
-    fe_t I_X, I_Y, I_Z, A, B, C, D, X, Y, Z;
+    fe_t I_X, I_Y, I_Z, A, B, C, D, E, X, Y, Z;
     if (p.z == 0) return p;
     I_X = p.x;
     I_Y = p.y;
     I_Z = p.z;
     A = fe_mul(I_Y, I_Y);
-    B = fe_mul(fe_mul(4, I_X), A);
-    C = fe_mul(fe_mul(8, A), A);
-    D = fe_mul(fe_mul(3, I_X), I_X);
+    B = fe_mul(fe_mul(CONST_4, I_X), A);
+    C = fe_mul(A, A);
+    C = fe_mul(CONST_8, C);
+    D = fe_mul(fe_mul(CONST_3, I_X), I_X);
     X = fe_mul(D, D);
-    X = fe_sub(X, fe_mul(2, B));
+    E = fe_add(B, B);
+    X = fe_sub(X, E);
     Y = fe_mul(D, fe_sub(B, X));
     Y = fe_sub(Y, C);
-    Z = fe_mul(fe_mul(2, I_Y), I_Z);
+    Z = fe_mul(fe_add(I_Y, I_Y), I_Z);
     dbl_jb_point.x = X;
     dbl_jb_point.y = Y;
     dbl_jb_point.z = Z;
@@ -196,7 +207,7 @@ package bn128_pkg;
     H = fe_sub(U2, U1);
     R = fe_sub(S2, S1);
     H3 = fe_mul(fe_mul(H, H), H);
-    A = fe_mul(fe_mul(fe_mul(2, U1), H), H);
+    A = fe_mul(fe_mul(fe_add(U1, U1), H), H);
     add_jb_point.z = fe_mul(fe_mul(H, p1.z), p2.z);
     add_jb_point.x = fe_mul(R, R);
     add_jb_point.x = fe_sub(add_jb_point.x, H3);
@@ -234,7 +245,7 @@ package bn128_pkg;
   endfunction
 
   // Function for G1 multiexp, using batched doubling
-  function jb_point_t multiexp_batch(input logic [DAT_BITS-1:0] s [], jb_point_t p []);
+  function jb_point_t multiexp_batch(input logic [DAT_BITS-1:0] s [], input jb_point_t p []);
     jb_point_t res;
     res = 0;
     for (int i = DAT_BITS-1; i >= 0; i--) begin
@@ -310,8 +321,20 @@ package bn128_pkg;
     fe_to_mont = fe_mul_mont(a, MONT_RECIP_SQ);
   endfunction
 
+  function jb_point_t jb_to_mont(jb_point_t a);
+    jb_to_mont.x = fe_to_mont(a.x);
+    jb_to_mont.y = fe_to_mont(a.y);
+    jb_to_mont.z = fe_to_mont(a.z);
+  endfunction
+
   function fe_t fe_from_mont(fe_t a);
     fe_from_mont = fe_mul_mont(a, 256'd1);
+  endfunction
+
+  function jb_point_t jb_from_mont(jb_point_t a);
+    jb_from_mont.x = fe_from_mont(a.x);
+    jb_from_mont.y = fe_from_mont(a.y);
+    jb_from_mont.z = fe_from_mont(a.z);
   endfunction
 
   // Functions for converting to affine, and printing

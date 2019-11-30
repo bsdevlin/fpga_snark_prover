@@ -76,7 +76,6 @@ end
 // Stage 2 multiplication
 always_comb i_mul_if_0.rdy = (~o_mul_if_1.val || (o_mul_if_1.val && o_mul_if_1.rdy)) && fifo_in_if.rdy;
 
-
 always_ff @ (posedge i_clk) begin
   if (i_rst) begin
     o_mul_if_1.reset_source();
@@ -87,6 +86,8 @@ always_ff @ (posedge i_clk) begin
 
     o_mul_if_1.sop <= 1;
     o_mul_if_1.eop <= 1;
+    fifo_in_if.sop <= 1;
+    fifo_in_if.eop <= 1;
 
     if (i_mul_if_0.rdy) begin
       o_mul_if_1.val <= i_mul_if_0.val;
@@ -122,10 +123,8 @@ always_ff @ (posedge i_clk) begin
 end
 
 // Stage 4 addition
-always_comb begin
-  i_mul_if_2.rdy = (o_add_if.val && o_add_if.rdy) || ~o_add_if.val;
-  fifo_out_if.rdy = o_add_if.val && o_add_if.rdy;
-end
+always_comb i_mul_if_2.rdy = ((o_add_if.val && o_add_if.rdy) || ~o_add_if.val) && fifo_out_if.val;
+always_comb fifo_out_if.rdy = ((o_add_if.val && o_add_if.rdy) || ~o_add_if.val) && i_mul_if_2.val;
 
 always_ff @ (posedge i_clk) begin
   if (i_rst) begin
@@ -136,8 +135,8 @@ always_ff @ (posedge i_clk) begin
     o_add_if.sop <= 1;
     o_add_if.eop <= 1;
 
-    if (i_mul_if_2.rdy) begin
-      o_add_if.val <= i_mul_if_2.val;
+    if (i_mul_if_2.rdy && fifo_out_if.rdy) begin
+      o_add_if.val <= i_mul_if_2.val && fifo_out_if.val;
       o_add_if.ctl <= i_mul_if_2.ctl;
       o_add_if.dat[0 +: 2*DAT_BITS] <= i_mul_if_2.dat;
       o_add_if.dat[2*DAT_BITS +: 2*DAT_BITS] <= fifo_out_if.dat;
