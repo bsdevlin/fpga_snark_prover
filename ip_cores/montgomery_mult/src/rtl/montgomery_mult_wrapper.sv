@@ -23,6 +23,7 @@ module montgomery_mult_wrapper #(
   parameter                CTL_BITS = 8,
   parameter                A_DSP_W = 26,
   parameter                B_DSP_W = 17,
+  parameter                HIGH_PERF = "YES", // Each multiplier interface gets a dedicated multiplier
   parameter                REDUCE_BITS,
   parameter [DAT_BITS-1:0] FACTOR,
   parameter [DAT_BITS-1:0] MASK,
@@ -94,34 +95,78 @@ subtractor_pipe (
   .o_sub ( sub_i_if )
 );
 
-resource_share # (
-  .NUM_IN       ( 3            ),
-  .DAT_BITS     ( 2*DAT_BITS   ),
-  .CTL_BITS     ( CTL_BITS_INT ),
-  .OVR_WRT_BIT  ( CTL_BITS     ),
-  .PIPELINE_IN  ( 1            ),
-  .PIPELINE_OUT ( 1            )
-)
-resource_share_mul (
-  .i_clk ( i_clk ),
-  .i_rst ( i_rst ),
-  .i_axi ( mul_o_if[2:0] ),
-  .o_res ( mul_o_if[3]   ),
-  .i_res ( mul_i_if[3]   ),
-  .o_axi ( mul_i_if[2:0] )
-);
+generate 
+  if (HIGH_PERF == "YES") begin: PERF_GEN
+    multiplier #(
+      .DAT_BITS ( DAT_BITS     ),
+      .CTL_BITS ( CTL_BITS_INT ),
+      .A_DSP_W  ( A_DSP_W      ),
+      .B_DSP_W  ( B_DSP_W      )
+    )
+    multiplier0 (
+      .i_clk ( i_clk ),
+      .i_rst ( i_rst ),
+      .i_mul ( mul_o_if[0] ),
+      .o_mul ( mul_i_if[0] )
+    );
+    
+    multiplier #(
+      .DAT_BITS ( DAT_BITS     ),
+      .CTL_BITS ( CTL_BITS_INT ),
+      .A_DSP_W  ( A_DSP_W      ),
+      .B_DSP_W  ( B_DSP_W      )
+    )
+    multiplier1 (
+      .i_clk ( i_clk ),
+      .i_rst ( i_rst ),
+      .i_mul ( mul_o_if[1] ),
+      .o_mul ( mul_i_if[1] )
+    );
+    
+     multiplier #(
+      .DAT_BITS ( DAT_BITS     ),
+      .CTL_BITS ( CTL_BITS_INT ),
+      .A_DSP_W  ( A_DSP_W      ),
+      .B_DSP_W  ( B_DSP_W      )
+    )
+    multiplier2 (
+      .i_clk ( i_clk ),
+      .i_rst ( i_rst ),
+      .i_mul ( mul_o_if[2] ),
+      .o_mul ( mul_i_if[2] )
+    );   
+  end else begin
+    resource_share # (
+      .NUM_IN       ( 3            ),
+      .DAT_BITS     ( 2*DAT_BITS   ),
+      .CTL_BITS     ( CTL_BITS_INT ),
+      .OVR_WRT_BIT  ( CTL_BITS     ),
+      .PIPELINE_IN  ( 1            ),
+      .PIPELINE_OUT ( 1            )
+    )
+    resource_share_mul (
+      .i_clk ( i_clk ),
+      .i_rst ( i_rst ),
+      .i_axi ( mul_o_if[2:0] ),
+      .o_res ( mul_o_if[3]   ),
+      .i_res ( mul_i_if[3]   ),
+      .o_axi ( mul_i_if[2:0] )
+    );
+    
+    multiplier #(
+      .DAT_BITS ( DAT_BITS     ),
+      .CTL_BITS ( CTL_BITS_INT ),
+      .A_DSP_W  ( A_DSP_W      ),
+      .B_DSP_W  ( B_DSP_W      )
+    )
+    multiplier (
+      .i_clk ( i_clk ),
+      .i_rst ( i_rst ),
+      .i_mul ( mul_o_if[3] ),
+      .o_mul ( mul_i_if[3] )
+    );
+  end 
+endgenerate
 
-multiplier #(
-  .DAT_BITS ( DAT_BITS     ),
-  .CTL_BITS ( CTL_BITS_INT ),
-  .A_DSP_W  ( A_DSP_W      ),
-  .B_DSP_W  ( B_DSP_W      )
-)
-multiplier (
-  .i_clk ( i_clk ),
-  .i_rst ( i_rst ),
-  .i_mul ( mul_o_if[3] ),
-  .o_mul ( mul_i_if[3] )
-);
 
 endmodule
