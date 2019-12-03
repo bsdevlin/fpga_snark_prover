@@ -6,7 +6,7 @@
   Each core has it's own multiplier, adder, and subtractor units.
 
   This does not do any pre-calculation.
-  
+
   Uses 8 bits for control muxing.
 
   We expect a looping stream of point and scalar pairs, from 0 to NUM_IN-1
@@ -43,6 +43,7 @@ module multiexp_core #(
   input i_rst,
 
   if_axi_stream.sink   i_pnt_scl_if,     // Interface to scalar and point stream pair - {FP_TYPE, FE_TYPE}
+                                         // Ctl[0] == 0 is normal mode. Ctl[0] == 1 is single add mode
   if_axi_stream.source o_pnt_if,         // Interface for final point output
 
   // Interfaces to arithmetic units
@@ -64,10 +65,8 @@ if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) sub_if_o [1:0] (i_cl
 if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   mul_if_i [1:0] (i_clk);
 if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) mul_if_o [1:0] (i_clk);
 
-
 logic [$clog2(KEY_BITS)-1:0] key_cnt;
 logic [$clog2(NUM_IN)-1:0] in_cnt;
-
 
 FP_TYPE dbl_pnt_o, add_pnt_o;
 logic add_val_o, add_rdy_i, add_rdy_o, add_val_i;
@@ -100,10 +99,19 @@ always_ff @ (posedge i_clk) begin
         key_cnt <= KEY_BITS-1;
         in_cnt <= 0;
         i_pnt_scl_if.rdy <= 0;
-        if (i_pnt_scl_if.val && ~o_pnt_if.val) begin
-          i_pnt_scl_if.rdy <= 1;
-          o_pnt_if.dat <= 0;
-          state <= ADD;
+        if (i_pnt_scl_if.val) begin
+            i_pnt_scl_if.rdy <= 1;
+          if (i_pnt_scl_if.ctl[0] == 0) begin
+            o_pnt_if.dat <= 0;
+            state <= ADD;
+          end else begin
+            i_pnt_scl_if.rdy <= 1;
+            add_val_i <= 1;
+            o_pnt_if.val <= 0;
+            key_cnt <= 0;
+            in_cnt <= NUM_IN-1;
+            state <= ADD_WAIT;
+          end
         end
       end
       DBL: begin
@@ -140,6 +148,7 @@ always_ff @ (posedge i_clk) begin
         end
       end
       ADD_WAIT: begin
+        i_pnt_scl_if.rdy <= 0;
         if (add_val_o == 1) begin
           o_pnt_if.dat <= add_pnt_o;
           if (in_cnt == NUM_IN-1) begin
