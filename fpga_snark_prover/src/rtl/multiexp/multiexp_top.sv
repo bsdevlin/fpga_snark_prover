@@ -128,7 +128,7 @@ always_ff @ (posedge i_clk) begin
           pnt_scl_if_add.dat <= {pnt_dat_o[core_sel+final_stage], {DAT_BITS{1'd0}}};
           pnt_scl_if_add.val <= 1;
         end
-        if (pnt_val_o[0] && (2*final_stage == NUM_PARALLEL_CORES)) begin
+        if (pnt_val_o[0] && (final_stage == NUM_PARALLEL_CORES)) begin
           o_pnt_if.val <= 1;
           o_pnt_if.dat <= pnt_dat_o[0];
           o_pnt_if.sop <= 1;
