@@ -1,5 +1,6 @@
 /*
-  Top level for the fpga_snark_prover
+  Top level for the fpga_snark_prover.
+  Internally we use a MMCM to constrain the frequency. Input frequency should be 250MHz.
 
   Copyright (C) 2019  Benjamin Devlin
 
@@ -29,6 +30,17 @@ module fpga_snark_prover_top
   if_axi_lite.sink     axi_lite_if
   // DDR interfaces
 
+);
+
+logic clk_int, locked;
+
+
+
+clk_wiz_0 inst (
+  .clk_out1( clk_int ),
+  .reset   ( i_rst ),
+  .locked  ( locked  ),
+  .clk_in1 ( i_clk   )
 );
 
 
