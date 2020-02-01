@@ -27,10 +27,10 @@ package bn128_pkg;
 
   // Parameters used during Montgomery multiplication
   localparam USE_MONT_MULT = "YES";
-  localparam [255:0] MONT_MASK = 256'h3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
-  localparam [255:0] MONT_FACTOR = 256'h357a22b791888c6bd8afcbd01833da809ede7d651eca6ac987d20782e4866389;
-  localparam int MONT_REDUCE_BITS = 254;
-  localparam [250:0] MONT_RECIP_SQ = 256'h373cede4abe9d548fffb64b58bc2d8544d6883a33cb6cc892f4d88722c07f7d; // Required for conversion into Montgomery form
+  localparam [255:0] MONT_MASK = 256'hffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+  localparam [255:0] MONT_FACTOR = 256'hf57a22b791888c6bd8afcbd01833da809ede7d651eca6ac987d20782e4866389;
+  localparam int MONT_REDUCE_BITS = 256;
+  localparam [250:0] MONT_RECIP_SQ = 256'h6d89f71cab8351f47ab1eff0a417ff6b5e71911d44501fbf32cfc5b538afa89; // Required for conversion into Montgomery form
 
   // Constants need to be converted to montgomery form is used
   localparam CONST_1 = USE_MONT_MULT == "YES" ? fe_to_mont(256'd1) : 256'd1;
@@ -309,10 +309,10 @@ package bn128_pkg;
     logic [$bits(fe_t)*2:0] m_, tmp;
     m_ = a * b;
     tmp = (m_ & MONT_MASK) * MONT_FACTOR;
-    tmp = tmp & MONT_MASK;
+    tmp = tmp & MONT_MASK;  // selectivley convert lower bits, or do a check to see if we would overflow and then raise error flag - if we trip then we do slow loop
     tmp = tmp * P;
     tmp = tmp + m_;
-    tmp = tmp >> MONT_REDUCE_BITS;
+    tmp = tmp >> MONT_REDUCE_BITS; // same as above
     if (tmp >= P) tmp -= P;
     fe_mul_mont = tmp;
   endfunction
