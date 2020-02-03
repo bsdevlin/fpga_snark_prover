@@ -24,7 +24,7 @@ import common_pkg::*;
 
 localparam CLK_PERIOD = 100;
 
-localparam NUM_IN = 2;
+localparam NUM_IN = 4;
 localparam DAT_BITS = $bits(fe_t);
 localparam KEY_BITS = $bits(P);
 localparam CTL_BITS = 8;

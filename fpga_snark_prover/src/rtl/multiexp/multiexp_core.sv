@@ -69,7 +69,7 @@ logic [$clog2(KEY_BITS)-1:0] key_cnt;
 logic [$clog2(NUM_IN)-1:0] in_cnt;
 
 FP_TYPE dbl_pnt_o, add_pnt_o;
-logic add_val_o, add_rdy_i, add_rdy_o, add_val_i;
+logic add_val_o, add_rdy_i, add_rdy_o, add_val_i, add_err_o;
 logic dbl_val_o, dbl_rdy_i, dbl_rdy_o, dbl_val_i;
 enum {IDLE, DBL, DBL_WAIT, ADD, ADD_WAIT} state;
 
@@ -149,20 +149,25 @@ always_ff @ (posedge i_clk) begin
       end
       ADD_WAIT: begin
         i_pnt_scl_if.rdy <= 0;
-        if (add_val_o == 1) begin
-          o_pnt_if.dat <= add_pnt_o;
-          if (in_cnt == NUM_IN-1) begin
-            in_cnt <= 0;
-            if (key_cnt == 0) begin
-              o_pnt_if.val <= 1;
-              state <= IDLE;
+        if (add_val_o || dbl_val_o) begin
+          o_pnt_if.dat <= dbl_val_o ? dbl_pnt_o : add_pnt_o;
+          if (add_err_o) begin
+            // This means the points were the same so we need to double
+            dbl_val_i <= 1;
+          end else begin          
+            if (in_cnt == NUM_IN-1) begin
+              in_cnt <= 0;
+              if (key_cnt == 0) begin
+                o_pnt_if.val <= 1;
+                state <= IDLE;
+              end else begin
+                state <= DBL;
+              end
             end else begin
-              state <= DBL;
+              i_pnt_scl_if.rdy <= 1;
+              in_cnt <= in_cnt + 1;
+              state <= ADD;
             end
-          end else begin
-            i_pnt_scl_if.rdy <= 1;
-            in_cnt <= in_cnt + 1;
-            state <= ADD;
           end
         end
       end
@@ -185,7 +190,7 @@ ec_point_add (
   .o_p   ( add_pnt_o ),
   .i_rdy ( add_rdy_i ),
   .o_val ( add_val_o ),
-  .o_err (),
+  .o_err ( add_err_o ),
   .o_mul_if ( mul_if_o[0] ),
   .i_mul_if ( mul_if_i[0] ),
   .o_add_if ( add_if_o[0] ),
