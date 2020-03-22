@@ -112,8 +112,6 @@ generate
   for (gx = 0; gx < NUM_GRID; gx++) begin: GEN_ACCUM_GRID
 
     logic [BIT_LEN-1:0] terms [NUM_COL*NUM_ROW];
-    logic [BIT_LEN-1:0] c;
-    logic [BIT_LEN-1:0] s;
 
     for (gy = 0; gy < NUM_COL*NUM_ROW; gy++) begin: GEN_ACCUM_VAL
 
@@ -121,22 +119,16 @@ generate
         terms[gy] =  mul_grid_flat[gy][gx*AGRID_W +: AGRID_W];
       end
     end
-
-    compressor_tree_3_to_2 #(
+    
+    adder_tree_log_n #(
       .NUM_ELEMENTS ( NUM_COL*NUM_ROW  ),
-      .BIT_LEN      ( BIT_LEN          )
+      .BIT_LEN      ( BIT_LEN          ),
+      .N            ( 3                )
     )
-    compressor_tree_3_to_2_i (
-      .terms ( terms ),
-      .C     ( c     ),
-      .S     ( s     )
+    adder_tree_log_3 (
+      .i_terms ( terms          ),
+      .o_s     ( accum_grid[gx] )
     );
-
-    // Add the result
-    always_ff @ (posedge i_clk) begin
-      if (o_mul.rdy)
-        accum_grid[gx] <= c + s;
-    end
 
   end
 endgenerate
