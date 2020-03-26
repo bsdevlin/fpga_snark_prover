@@ -119,16 +119,24 @@ generate
         terms[gy] =  mul_grid_flat[gy][gx*AGRID_W +: AGRID_W];
       end
     end
-    
+      
+    logic [BIT_LEN-1:0] res;
+ 
     adder_tree_log_n #(
       .NUM_ELEMENTS ( NUM_COL*NUM_ROW  ),
       .BIT_LEN      ( BIT_LEN          ),
       .N            ( 3                )
     )
     adder_tree_log_3 (
-      .i_terms ( terms          ),
-      .o_s     ( accum_grid[gx] )
+      .i_terms ( terms ),
+      .o_s     ( res   )
     );
+
+    // Add the result
+    always_ff @ (posedge i_clk) begin
+      if (o_mul.rdy)
+        accum_grid[gx] <= res;
+    end
 
   end
 endgenerate
