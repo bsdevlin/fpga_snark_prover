@@ -50,6 +50,8 @@ if_axi_stream #(.DAT_BYTS((DAT_IN1+7)/8), .CTL_BITS(CTL_BITS)) o_pnt_if (clk);
 jb_point_t in_p [];
 fe_t in_s [];
 
+logic [$clog2(DAT_BITS*NUM_IN):0] cnt;
+
 initial begin
   rst = 0;
   repeat(2) #(20*CLK_PERIOD) rst = ~rst;
@@ -132,6 +134,7 @@ begin
   logic [common_pkg::MAX_SIM_BYTS*8-1:0] get_dat;
   jb_point_t out;
   af_point_t expected;
+  cnt = DAT_BITS-1;
   
   in_p = new[NUM_IN];
   in_s = new[NUM_IN];
@@ -147,7 +150,10 @@ begin
 
   fork
     for(int j = 0; j < DAT_BITS; j++) begin
-      for (int i = 0; i < NUM_IN; i++) i_pnt_scl_if.put_stream({in_p[i], in_s[i]}, (DAT_IN0+7)/8, i);
+      for (int i = 0; i < NUM_IN; i++) begin
+        i_pnt_scl_if.put_stream({in_p[i], in_s[i]}, (DAT_IN0+7)/8, i);
+      end
+      cnt--;
     end
     begin
       o_pnt_if.get_stream(get_dat, get_len, 0);

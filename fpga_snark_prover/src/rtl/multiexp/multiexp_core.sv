@@ -66,7 +66,7 @@ if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   mul_if_i [1:0] (i_cl
 if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) mul_if_o [1:0] (i_clk);
 
 logic [$clog2(KEY_BITS)-1:0] key_cnt;
-logic [$clog2(NUM_IN)-1:0] in_cnt;
+logic [(NUM_IN > 1 ? $clog2(NUM_IN) : 1)-1:0] in_cnt;
 
 FP_TYPE dbl_pnt_o, add_pnt_o;
 logic add_val_o, add_rdy_i, add_rdy_o, add_val_i, add_err_o;
@@ -80,11 +80,10 @@ always_ff @ (posedge i_clk) begin
     o_pnt_if.reset_source();
     key_cnt <= 0;
     in_cnt <= 0;
-    add_rdy_i <= 1;
-    dbl_rdy_i <= 1;
+    add_rdy_i <= 0;
+    dbl_rdy_i <= 0;
   end else begin
 
-    add_rdy_i <= 1;
     dbl_rdy_i <= 1;
 
     o_pnt_if.sop <= 1;
@@ -98,19 +97,21 @@ always_ff @ (posedge i_clk) begin
       IDLE: begin
         key_cnt <= KEY_BITS-1;
         in_cnt <= 0;
-        i_pnt_scl_if.rdy <= 0;
-        if (i_pnt_scl_if.val) begin
-            i_pnt_scl_if.rdy <= 1;
-          if (i_pnt_scl_if.ctl[0] == 0) begin
-            o_pnt_if.dat <= 0;
-            state <= ADD;
-          end else begin
-            i_pnt_scl_if.rdy <= 1;
-            add_val_i <= 1;
-            o_pnt_if.val <= 0;
-            key_cnt <= 0;
-            in_cnt <= NUM_IN-1;
-            state <= ADD_WAIT;
+        i_pnt_scl_if.rdy <= 0;  
+        if (~o_pnt_if.val) begin
+          i_pnt_scl_if.rdy <= i_pnt_scl_if.val;  
+          if (i_pnt_scl_if.val) begin
+            if (i_pnt_scl_if.ctl[0] == 0) begin
+              o_pnt_if.dat <= 0;
+              state <= ADD;
+            end else begin
+              i_pnt_scl_if.rdy <= 1;
+              add_val_i <= 1;
+              o_pnt_if.val <= 0;
+              key_cnt <= 0;
+              in_cnt <= NUM_IN-1;
+              state <= ADD_WAIT;
+            end
           end
         end
       end
@@ -122,15 +123,14 @@ always_ff @ (posedge i_clk) begin
       DBL_WAIT: begin
         if (dbl_val_o) begin
           o_pnt_if.dat <= dbl_pnt_o;
-          i_pnt_scl_if.rdy <= 1;
           key_cnt <= key_cnt - 1;
           state <= ADD;
         end
       end
       ADD: begin
+        i_pnt_scl_if.rdy <= 1;
         if (i_pnt_scl_if.val && i_pnt_scl_if.rdy) begin
           if (i_pnt_scl_if.dat[key_cnt] == 1) begin
-            i_pnt_scl_if.rdy <= 0;
             add_val_i <= 1;
             state <= ADD_WAIT;
           end else if (in_cnt == NUM_IN-1) begin
@@ -139,7 +139,6 @@ always_ff @ (posedge i_clk) begin
               o_pnt_if.val <= 1;
               state <= IDLE;
             end else begin
-              i_pnt_scl_if.rdy <= 0;
               state <= DBL;
             end
           end else begin
@@ -149,6 +148,7 @@ always_ff @ (posedge i_clk) begin
       end
       ADD_WAIT: begin
         i_pnt_scl_if.rdy <= 0;
+        add_rdy_i <= 1;
         if (add_val_o || dbl_val_o) begin
           o_pnt_if.dat <= dbl_val_o ? dbl_pnt_o : add_pnt_o;
           if (add_err_o) begin
@@ -159,6 +159,7 @@ always_ff @ (posedge i_clk) begin
               in_cnt <= 0;
               if (key_cnt == 0) begin
                 o_pnt_if.val <= 1;
+                add_rdy_i <= 0;
                 state <= IDLE;
               end else begin
                 state <= DBL;
