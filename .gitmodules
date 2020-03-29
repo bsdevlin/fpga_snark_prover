@@ -1,3 +1,7 @@
 [submodule "submodules/fpga"]
 	path = submodules/fpga
 	url = https://github.com/ZcashFoundation/zcash-fpga.git
+[submodule "submodules/aws"]
+  path = submodules/aws-fpga
+  url = https://github.com/aws/aws-fpga.git
+	branch = v1.4.13
