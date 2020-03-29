@@ -28,9 +28,9 @@ module multiexp_top
   parameter type FP_TYPE,
   parameter type FE_TYPE,
   parameter      P,
-  parameter      NUM_IN,              // Number of points / scalars in memory to operate on
-  parameter      NUM_PARALLEL_CORES,  // How many parallel cores do we instantiate, should be a power of 2
-  parameter      NUM_CORES_PER_ARITH, // How many arithmetic blocks (mult, add, sub) do we share between cores. Should divide evenly.
+  parameter      NUM_IN,     // Number of points / scalars in memory to operate on
+  parameter      NUM_CORES,  // How many parallel cores do we instantiate, should be a power of 2
+  parameter      NUM_ARITH,  // How many arithmetic units (mult, add, sub). Divided evenly over number of cores, should be a power of 2
   // If using montgomery form need to override these
   parameter                REDUCE_BITS,
   parameter [DAT_BITS-1:0] FACTOR,
@@ -46,20 +46,22 @@ module multiexp_top
   if_axi_stream.source o_pnt_if // Final output
 );
 
+localparam NUM_CORE_IN_GRP =  (NUM_CORES+NUM_ARITH-1)/NUM_ARITH;
+
 localparam CTL_BITS = 8;
-localparam CTL_BITS_INT = CTL_BITS + $clog2(NUM_CORES_PER_ARITH);
+localparam CTL_BITS_INT = CTL_BITS + $clog2(NUM_CORE_IN_GRP);
 localparam DAT_BITS = $bits(FE_TYPE);
 
-logic [$clog2(NUM_PARALLEL_CORES)-1:0] core_sel;    // Used when muxing traffic into the cores
-logic [$clog2(NUM_PARALLEL_CORES):0] final_stage; // When doing the final add
+logic [(NUM_CORES == 1 ? 1 : $clog2(NUM_CORES))-1:0] core_sel;    // Used when muxing traffic into the cores
+logic [$clog2(NUM_CORES):0] final_stage; // When doing the final add
 logic [$clog2(DAT_BITS)-1:0] key_cnt;
-logic [$clog2(NUM_IN)-1:0] in_cnt;
-logic [NUM_PARALLEL_CORES-1:0] core_rdy;
+logic [(NUM_IN > 1 ? $clog2(NUM_IN) : 1)-1:0] in_cnt;
+logic [NUM_CORES-1:0] core_rdy;
 
-if_axi_stream #(.DAT_BITS($bits(FP_TYPE)), .CTL_BITS(CTL_BITS)) pnt_if_o (i_clk);
+
 if_axi_stream #(.DAT_BITS($bits(FP_TYPE)+DAT_BITS), .CTL_BITS(CTL_BITS)) pnt_scl_if_add (i_clk);
-logic [NUM_PARALLEL_CORES-1:0] pnt_val_o;
-logic [NUM_PARALLEL_CORES-1:0] [$bits(FP_TYPE)-1:0] pnt_dat_o;
+logic [NUM_CORES-1:0] pnt_val_o, pnt_rdy_o;
+logic [NUM_CORES-1:0] [$bits(FP_TYPE)-1:0] pnt_dat_o;
 
 // Logic for streaming data into cores and adding final output
 enum {IDLE, MULTI_EXP, FINAL_ADD} state;
@@ -67,36 +69,32 @@ enum {IDLE, MULTI_EXP, FINAL_ADD} state;
 always_comb begin
   i_pnt_scl_if.rdy = core_rdy[core_sel] && (state == MULTI_EXP) && o_pnt_if.val == 0;
   pnt_scl_if_add.rdy = core_rdy[core_sel] && (state == FINAL_ADD);
-  pnt_if_o.dat = pnt_dat_o[core_sel];
-  pnt_if_o.val = pnt_val_o[core_sel];
-  pnt_if_o.mod = 0;
-  pnt_if_o.sop = 1;
-  pnt_if_o.eop = 1;
-  pnt_if_o.ctl = 0;
-  pnt_if_o.err = 0;
 end
 
 always_ff @ (posedge i_clk) begin
   if (i_rst) begin
     state <= IDLE;
     core_sel <= 0;
-    pnt_if_o.rdy <= 0;
     o_pnt_if.reset_source();
     key_cnt <= 0;
     in_cnt <= 0;
     final_stage <= 0;
+    for (int i = 0; i < NUM_CORES; i++)
+      pnt_rdy_o[i] <= 0;
     pnt_scl_if_add.reset_source();
   end else begin
   
     if (core_rdy[core_sel]) pnt_scl_if_add.val <= 0;
     if (o_pnt_if.rdy) o_pnt_if.val <= 0;
+    
+    for (int i = 0; i < NUM_CORES; i++)
+      pnt_rdy_o[i] <= 0;
       
     case (state)
       IDLE: begin
         core_sel <= 0;
         key_cnt <= 0;
         in_cnt <= 0;
-        pnt_if_o.rdy <= 0;
         pnt_scl_if_add.val <= 0;
         final_stage <= 1;
         if (i_pnt_scl_if.val && o_pnt_if.val == 0) begin
@@ -105,7 +103,7 @@ always_ff @ (posedge i_clk) begin
       end
       MULTI_EXP: begin
         if (i_pnt_scl_if.val && i_pnt_scl_if.rdy) begin
-          core_sel <= (core_sel + 1) % NUM_PARALLEL_CORES;
+          core_sel <= (core_sel + 1) % NUM_CORES;
           in_cnt <= (in_cnt + 1) % NUM_IN;
           if (in_cnt == NUM_IN-1) begin
             key_cnt <= key_cnt + 1;
@@ -119,7 +117,7 @@ always_ff @ (posedge i_clk) begin
       FINAL_ADD: begin
         if (core_rdy[core_sel] && pnt_scl_if_add.val) begin
           core_sel <= core_sel + 2*final_stage;
-          if (core_sel + 2*final_stage == NUM_PARALLEL_CORES) begin
+          if (core_sel + 2*final_stage == NUM_CORES) begin
             core_sel <= 0;
             final_stage <= 2*final_stage;
           end
@@ -127,12 +125,15 @@ always_ff @ (posedge i_clk) begin
         if (pnt_val_o[core_sel+final_stage] && pnt_val_o[core_sel]) begin
           pnt_scl_if_add.dat <= {pnt_dat_o[core_sel+final_stage], {DAT_BITS{1'd0}}};
           pnt_scl_if_add.val <= 1;
+          pnt_rdy_o[core_sel] <= 1;
+          pnt_rdy_o[core_sel+final_stage] <= 1;
         end
-        if (pnt_val_o[0] && (final_stage == NUM_PARALLEL_CORES)) begin
+        if (pnt_val_o[0] && (final_stage == NUM_CORES)) begin
           o_pnt_if.val <= 1;
           o_pnt_if.dat <= pnt_dat_o[0];
           o_pnt_if.sop <= 1;
           o_pnt_if.eop <= 1;
+          pnt_rdy_o[0] <= 1;
           state <= IDLE;
         end
       end
@@ -141,73 +142,90 @@ always_ff @ (posedge i_clk) begin
 end
 
 // Instantiate the cores and arithmetic blocks
+
+
+
+
 genvar gx, gy;
 generate
-  for (gx = 0; gx < NUM_PARALLEL_CORES/NUM_CORES_PER_ARITH; gx++) begin: CORE_GEN
-
-    if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS_INT)) mul_if_o [NUM_CORES_PER_ARITH:0] (i_clk);
-    if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS_INT))   mul_if_i [NUM_CORES_PER_ARITH:0] (i_clk);
-    if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS_INT)) add_if_o [NUM_CORES_PER_ARITH:0] (i_clk);
-    if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS_INT))   add_if_i [NUM_CORES_PER_ARITH:0] (i_clk);
-    if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS_INT)) sub_if_o [NUM_CORES_PER_ARITH:0] (i_clk);
-    if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS_INT))   sub_if_i [NUM_CORES_PER_ARITH:0] (i_clk);
-
-    for (gy = 0; gy < NUM_CORES_PER_ARITH; gy++) begin: ARITH_GEN
-
-      localparam THIS_CORE = gx*NUM_CORES_PER_ARITH+gy;
-
-      if_axi_stream #(.DAT_BITS($bits(FP_TYPE)+DAT_BITS), .CTL_BITS(CTL_BITS)) pnt_scl_if_i (i_clk);
-      if_axi_stream #(.DAT_BITS($bits(FP_TYPE)), .CTL_BITS(CTL_BITS)) pnt_if_o (i_clk);
-
-      // Control logic
-      always_comb begin
-        core_rdy[THIS_CORE] = pnt_scl_if_i.rdy;
-        pnt_scl_if_i.dat = 0;
-        pnt_scl_if_i.sop = 1;
-        pnt_scl_if_i.eop = 1;
-        pnt_scl_if_i.ctl = 0;
-        pnt_scl_if_i.mod = 0;
-        pnt_scl_if_i.err = 0;
-        pnt_scl_if_i.val = 0;
-        
-        if (state == MULTI_EXP) begin
-          pnt_scl_if_i.val = i_pnt_scl_if.val && (core_sel == THIS_CORE);
-          pnt_scl_if_i.dat = i_pnt_scl_if.dat;
-        end else if (state == FINAL_ADD) begin
-          pnt_scl_if_i.val = pnt_scl_if_add.val && (core_sel == THIS_CORE);
-          pnt_scl_if_i.dat = pnt_scl_if_add.dat;
-          pnt_scl_if_i.ctl[0] = 1;
+  for (gx = 0; gx < NUM_ARITH; gx++) begin: GROUP_GEN
+  
+    if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS_INT)) mul_if_o [NUM_CORE_IN_GRP:0] (i_clk);
+    if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS_INT))   mul_if_i [NUM_CORE_IN_GRP:0] (i_clk);
+    if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS_INT)) add_if_o [NUM_CORE_IN_GRP:0] (i_clk);
+    if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS_INT))   add_if_i [NUM_CORE_IN_GRP:0] (i_clk);
+    if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS_INT)) sub_if_o [NUM_CORE_IN_GRP:0] (i_clk);
+    if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS_INT))   sub_if_i [NUM_CORE_IN_GRP:0] (i_clk);
+  
+    
+    for (gy = 0; gy < NUM_CORE_IN_GRP; gy++) begin: CORE_GEN
+    
+      localparam C = gx*NUM_CORE_IN_GRP + gy;
+      
+      if (gx*NUM_CORE_IN_GRP + gy >= NUM_CORES) begin
+        always_comb begin
+          mul_if_o[gy].val = 0;
+          mul_if_i[gy].rdy = 0;
+          add_if_o[gy].val = 0;
+          add_if_i[gy].rdy = 0;
+          sub_if_o[gy].val = 0;
+          sub_if_i[gy].rdy = 0;          
         end
         
-        pnt_if_o.rdy = (state == IDLE);
-        pnt_val_o[THIS_CORE] = pnt_if_o.val;
-        pnt_dat_o[THIS_CORE] = pnt_if_o.dat;
+      end else begin
+        if_axi_stream #(.DAT_BITS($bits(FP_TYPE)+DAT_BITS), .CTL_BITS(CTL_BITS)) pnt_scl_if_i (i_clk);
+        if_axi_stream #(.DAT_BITS($bits(FP_TYPE)), .CTL_BITS(CTL_BITS)) pnt_if_o (i_clk);
+
+        // Control logic
+        always_comb begin
+          core_rdy[C] = pnt_scl_if_i.rdy;
+          pnt_scl_if_i.dat = 0;
+          pnt_scl_if_i.sop = 1;
+          pnt_scl_if_i.eop = 1;
+          pnt_scl_if_i.ctl = 0;
+          pnt_scl_if_i.mod = 0;
+          pnt_scl_if_i.err = 0;
+          pnt_scl_if_i.val = 0;
+        
+          if (state == MULTI_EXP) begin
+            pnt_scl_if_i.val = i_pnt_scl_if.val && (core_sel == C);
+            pnt_scl_if_i.dat = i_pnt_scl_if.dat;
+          end else if (state == FINAL_ADD) begin
+            pnt_scl_if_i.val = pnt_scl_if_add.val && (core_sel == C);
+            pnt_scl_if_i.dat = pnt_scl_if_add.dat;
+            pnt_scl_if_i.ctl[0] = 1;
+          end
+        
+          pnt_if_o.rdy = pnt_rdy_o[C];
+          pnt_val_o[C] = pnt_if_o.val;
+          pnt_dat_o[C] = pnt_if_o.dat;
+        end
+        
+        multiexp_core #(
+          .FP_TYPE  ( FP_TYPE  ),
+          .FE_TYPE  ( FE_TYPE  ),
+          .KEY_BITS ( DAT_BITS ),
+          .CTL_BITS ( CTL_BITS ),
+          .NUM_IN   ( NUM_IN / NUM_CORES ),
+          .CONST_3  ( CONST_3  ),
+          .CONST_4  ( CONST_4  ),
+          .CONST_8  ( CONST_8  )
+        )
+        multiexp_core (
+          .i_clk ( i_clk ),
+          .i_rst ( i_rst ),
+          .i_pnt_scl_if ( pnt_scl_if_i ),
+          .o_pnt_if ( pnt_if_o    ),
+          .o_mul_if( mul_if_o[gy] ),
+          .i_mul_if( mul_if_i[gy] ),
+          .o_add_if( add_if_o[gy] ),
+          .i_add_if( add_if_i[gy] ),
+          .o_sub_if( sub_if_o[gy] ),
+          .i_sub_if( sub_if_i[gy] )
+        );
       end
-
-      multiexp_core #(
-        .FP_TYPE  ( FP_TYPE  ),
-        .FE_TYPE  ( FE_TYPE  ),
-        .KEY_BITS ( DAT_BITS ),
-        .CTL_BITS ( CTL_BITS ),
-        .NUM_IN   ( NUM_IN / NUM_PARALLEL_CORES ),
-        .CONST_3  ( CONST_3  ),
-        .CONST_4  ( CONST_4  ),
-        .CONST_8  ( CONST_8  )
-      )
-      multiexp_core (
-        .i_clk ( i_clk ),
-        .i_rst ( i_rst ),
-        .i_pnt_scl_if ( pnt_scl_if_i ),
-        .o_pnt_if ( pnt_if_o    ),
-        .o_mul_if( mul_if_o[gy] ),
-        .i_mul_if( mul_if_i[gy] ),
-        .o_add_if( add_if_o[gy] ),
-        .i_add_if( add_if_i[gy] ),
-        .o_sub_if( sub_if_o[gy] ),
-        .i_sub_if( sub_if_i[gy] )
-      );
     end
-
+    
     montgomery_mult_wrapper #(
       .DAT_BITS    ( DAT_BITS     ),
       .CTL_BITS    ( CTL_BITS_INT ),
@@ -221,8 +239,8 @@ generate
     montgomery_mult_wrapper (
       .i_clk ( i_clk ),
       .i_rst ( i_rst ),
-      .i_mont_mul_if ( mul_if_o[NUM_CORES_PER_ARITH] ),
-      .o_mont_mul_if ( mul_if_i[NUM_CORES_PER_ARITH] )
+      .i_mont_mul_if ( mul_if_o[NUM_CORE_IN_GRP] ),
+      .o_mont_mul_if ( mul_if_i[NUM_CORE_IN_GRP] )
     );
 
     adder_pipe # (
@@ -234,8 +252,8 @@ generate
     adder_pipe (
       .i_clk ( i_clk ),
       .i_rst ( i_rst ),
-      .i_add ( add_if_o[NUM_CORES_PER_ARITH] ),
-      .o_add ( add_if_i[NUM_CORES_PER_ARITH] )
+      .i_add ( add_if_o[NUM_CORE_IN_GRP] ),
+      .o_add ( add_if_i[NUM_CORE_IN_GRP] )
     );
 
     subtractor_pipe # (
@@ -247,62 +265,78 @@ generate
     subtractor_pipe (
       .i_clk ( i_clk ),
       .i_rst ( i_rst ),
-      .i_sub ( sub_if_o[NUM_CORES_PER_ARITH] ),
-      .o_sub ( sub_if_i[NUM_CORES_PER_ARITH] )
+      .i_sub ( sub_if_o[NUM_CORE_IN_GRP] ),
+      .o_sub ( sub_if_i[NUM_CORE_IN_GRP] )
     );
+    if (NUM_CORE_IN_GRP > 1) begin
+      resource_share # (
+        .NUM_IN       ( NUM_CORE_IN_GRP ),
+        .DAT_BITS     ( 2*DAT_BITS   ),
+        .CTL_BITS     ( CTL_BITS_INT ),
+        .OVR_WRT_BIT  ( CTL_BITS     ),
+        .PIPELINE_IN  ( 1 ),
+        .PIPELINE_OUT ( 1 )
+      )
+      resource_share_sub (
+        .i_clk ( i_clk ),
+        .i_rst ( i_rst ),
+        .i_axi ( sub_if_o[NUM_CORE_IN_GRP-1:0] ),
+        .o_res ( sub_if_o[NUM_CORE_IN_GRP]     ),
+        .i_res ( sub_if_i[NUM_CORE_IN_GRP]     ),
+        .o_axi ( sub_if_i[NUM_CORE_IN_GRP-1:0] )
+      );
+  
+      resource_share # (
+        .NUM_IN       ( NUM_CORE_IN_GRP ),
+        .DAT_BITS     ( 2*DAT_BITS   ),
+        .CTL_BITS     ( CTL_BITS_INT ),
+        .OVR_WRT_BIT  ( CTL_BITS     ),
+        .PIPELINE_IN  ( 1 ),
+        .PIPELINE_OUT ( 1 )
+      )
+      resource_share_add (
+        .i_clk ( i_clk ),
+        .i_rst ( i_rst ),
+        .i_axi ( add_if_o[NUM_CORE_IN_GRP-1:0] ),
+        .o_res ( add_if_o[NUM_CORE_IN_GRP]     ),
+        .i_res ( add_if_i[NUM_CORE_IN_GRP]     ),
+        .o_axi ( add_if_i[NUM_CORE_IN_GRP-1:0] )
+      );
+  
+      resource_share # (
+        .NUM_IN       ( NUM_CORE_IN_GRP ),
+        .DAT_BITS     ( 2*DAT_BITS   ),
+        .CTL_BITS     ( CTL_BITS_INT ),
+        .OVR_WRT_BIT  ( CTL_BITS     ),
+        .PIPELINE_IN  ( 1 ),
+        .PIPELINE_OUT ( 1 )
+      )
+      resource_share_mul (
+        .i_clk ( i_clk ),
+        .i_rst ( i_rst ),
+        .i_axi ( mul_if_o[NUM_CORE_IN_GRP-1:0] ),
+        .o_res ( mul_if_o[NUM_CORE_IN_GRP]     ),
+        .i_res ( mul_if_i[NUM_CORE_IN_GRP]     ),
+        .o_axi ( mul_if_i[NUM_CORE_IN_GRP-1:0] )
+      );
+    end else begin
+      always_comb begin
+        mul_if_o[1].copy_if_comb(mul_if_o[0].dat, mul_if_o[0].val, mul_if_o[0].sop, mul_if_o[0].eop, mul_if_o[0].err, mul_if_o[0].mod, mul_if_o[0].ctl);
+        mul_if_o[0].rdy = mul_if_o[1].rdy;
+        mul_if_i[0].copy_if_comb(mul_if_i[1].dat, mul_if_i[1].val, mul_if_i[1].sop, mul_if_i[1].eop, mul_if_i[1].err, mul_if_i[1].mod, mul_if_i[1].ctl);
+        mul_if_i[1].rdy = mul_if_o[0].rdy;
+        add_if_o[1].copy_if_comb(add_if_o[0].dat, add_if_o[0].val, add_if_o[0].sop, add_if_o[0].eop, add_if_o[0].err, add_if_o[0].mod, add_if_o[0].ctl);
+        add_if_o[0].rdy = add_if_o[1].rdy;
+        add_if_i[0].copy_if_comb(add_if_i[1].dat, add_if_i[1].val, add_if_i[1].sop, add_if_i[1].eop, add_if_i[1].err, add_if_i[1].mod, add_if_i[1].ctl);
+        add_if_i[1].rdy = add_if_o[0].rdy;    
+        sub_if_o[1].copy_if_comb(sub_if_o[0].dat, sub_if_o[0].val, sub_if_o[0].sop, sub_if_o[0].eop, sub_if_o[0].err, sub_if_o[0].mod, sub_if_o[0].ctl);
+        sub_if_o[0].rdy = sub_if_o[1].rdy;
+        sub_if_i[0].copy_if_comb(sub_if_i[1].dat, sub_if_i[1].val, sub_if_i[1].sop, sub_if_i[1].eop, sub_if_i[1].err, sub_if_i[1].mod, sub_if_i[1].ctl);
+        sub_if_i[1].rdy = sub_if_o[0].rdy;   
+      end
+    end
 
-    resource_share # (
-      .NUM_IN       ( NUM_CORES_PER_ARITH ),
-      .DAT_BITS     ( 2*DAT_BITS   ),
-      .CTL_BITS     ( CTL_BITS_INT ),
-      .OVR_WRT_BIT  ( CTL_BITS     ),
-      .PIPELINE_IN  ( 1 ),
-      .PIPELINE_OUT ( 1 )
-    )
-    resource_share_sub (
-      .i_clk ( i_clk ),
-      .i_rst ( i_rst ),
-      .i_axi ( sub_if_o[NUM_CORES_PER_ARITH-1:0] ),
-      .o_res ( sub_if_o[NUM_CORES_PER_ARITH]     ),
-      .i_res ( sub_if_i[NUM_CORES_PER_ARITH]     ),
-      .o_axi ( sub_if_i[NUM_CORES_PER_ARITH-1:0] )
-    );
-
-    resource_share # (
-      .NUM_IN       ( NUM_CORES_PER_ARITH ),
-      .DAT_BITS     ( 2*DAT_BITS   ),
-      .CTL_BITS     ( CTL_BITS_INT ),
-      .OVR_WRT_BIT  ( CTL_BITS     ),
-      .PIPELINE_IN  ( 1 ),
-      .PIPELINE_OUT ( 1 )
-    )
-    resource_share_add (
-      .i_clk ( i_clk ),
-      .i_rst ( i_rst ),
-      .i_axi ( add_if_o[NUM_CORES_PER_ARITH-1:0] ),
-      .o_res ( add_if_o[NUM_CORES_PER_ARITH]     ),
-      .i_res ( add_if_i[NUM_CORES_PER_ARITH]     ),
-      .o_axi ( add_if_i[NUM_CORES_PER_ARITH-1:0] )
-    );
-
-    resource_share # (
-      .NUM_IN       ( NUM_CORES_PER_ARITH ),
-      .DAT_BITS     ( 2*DAT_BITS   ),
-      .CTL_BITS     ( CTL_BITS_INT ),
-      .OVR_WRT_BIT  ( CTL_BITS     ),
-      .PIPELINE_IN  ( 1 ),
-      .PIPELINE_OUT ( 1 )
-    )
-    resource_share_mul (
-      .i_clk ( i_clk ),
-      .i_rst ( i_rst ),
-      .i_axi ( mul_if_o[NUM_CORES_PER_ARITH-1:0] ),
-      .o_res ( mul_if_o[NUM_CORES_PER_ARITH]     ),
-      .i_res ( mul_if_i[NUM_CORES_PER_ARITH]     ),
-      .o_axi ( mul_if_i[NUM_CORES_PER_ARITH-1:0] )
-    );
   end
-
 endgenerate
 
 endmodule

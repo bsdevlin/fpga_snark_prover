@@ -68,7 +68,7 @@ if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) mul_if_o [1:0] (i_cl
 logic [$clog2(KEY_BITS)-1:0] key_cnt;
 logic [(NUM_IN > 1 ? $clog2(NUM_IN) : 1)-1:0] in_cnt;
 
-FP_TYPE dbl_pnt_o, add_pnt_o;
+FP_TYPE dbl_pnt_o, add_pnt_o, add_dat_i;
 logic add_val_o, add_rdy_i, add_rdy_o, add_val_i, add_err_o;
 logic dbl_val_o, dbl_rdy_i, dbl_rdy_o, dbl_val_i;
 enum {IDLE, DBL, DBL_WAIT, ADD, ADD_WAIT} state;
@@ -82,6 +82,7 @@ always_ff @ (posedge i_clk) begin
     in_cnt <= 0;
     add_rdy_i <= 0;
     dbl_rdy_i <= 0;
+    add_dat_i <= 0;
   end else begin
 
     dbl_rdy_i <= 1;
@@ -107,6 +108,7 @@ always_ff @ (posedge i_clk) begin
             end else begin
               i_pnt_scl_if.rdy <= 1;
               add_val_i <= 1;
+              add_dat_i <= i_pnt_scl_if.dat[$bits(FE_TYPE) +: $bits(FP_TYPE)];
               o_pnt_if.val <= 0;
               key_cnt <= 0;
               in_cnt <= NUM_IN-1;
@@ -132,6 +134,7 @@ always_ff @ (posedge i_clk) begin
         if (i_pnt_scl_if.val && i_pnt_scl_if.rdy) begin
           if (i_pnt_scl_if.dat[key_cnt] == 1) begin
             add_val_i <= 1;
+            add_dat_i <= i_pnt_scl_if.dat[$bits(FE_TYPE) +: $bits(FP_TYPE)];
             state <= ADD_WAIT;
           end else if (in_cnt == NUM_IN-1) begin
             in_cnt <= 0;
@@ -184,7 +187,7 @@ ec_point_add
 ec_point_add (
   .i_clk ( i_clk ),
   .i_rst ( i_rst ),
-  .i_p1  ( i_pnt_scl_if.dat[$bits(FE_TYPE) +: $bits(FP_TYPE)] ),
+  .i_p1  ( add_dat_i  ),
   .i_p2  ( o_pnt_if.dat ),
   .i_val ( add_val_i ),
   .o_rdy ( add_rdy_o ),

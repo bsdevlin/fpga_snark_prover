@@ -143,7 +143,10 @@ begin
 
   for (int i = 0; i < NUM_IN; i++) begin
     in_p[i] = jb_to_mont(point_mult(random_vector((DAT_BITS+7)/8) % P, G1_JB));
+    $display("Input point #%d", i);
+    print_jb_point(in_p[i]);
     in_s[i] = random_vector((DAT_BITS+7)/8) % P;
+    $display("Key 0x%x", in_s[i]);
   end
 
   expected = to_affine(multiexp_batch(in_s, in_p));
@@ -167,7 +170,6 @@ begin
     $display("Was:      0x%0x", to_affine(jb_from_mont(out)));
     $fatal(1, "ERROR: Output did not match");
   end
-
 
   $display("test0 PASSED");
   in_p.delete();

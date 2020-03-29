@@ -25,8 +25,8 @@ import common_pkg::*;
 localparam CLK_PERIOD = 100;
 
 localparam NUM_IN = 4;
-localparam NUM_PARALLEL_CORES = 2;
-localparam NUM_CORES_PER_ARITH = 2;
+localparam NUM_CORES = 1;
+localparam NUM_ARITH = 1;
 
 localparam DAT_BITS = $bits(fe_t);
 
@@ -40,6 +40,7 @@ if_axi_stream #(.DAT_BYTS((DAT_IN1+7)/8), .CTL_BITS(8)) o_pnt_if (clk);
 
 jb_point_t in_p [];
 fe_t in_s [];
+logic [$clog2(DAT_BITS)-1:0] cnt;
 
 initial begin
   rst = 0;
@@ -52,18 +53,18 @@ initial begin
 end
 
 multiexp_top #(
-  .FP_TYPE             ( jb_point_t ),
-  .FE_TYPE             ( fe_t       ),
-  .P                   ( P          ),
-  .NUM_PARALLEL_CORES  ( NUM_PARALLEL_CORES ),
-  .NUM_CORES_PER_ARITH ( NUM_CORES_PER_ARITH ),
-  .NUM_IN              ( NUM_IN     ),
-  .REDUCE_BITS         ( MONT_REDUCE_BITS ),
-  .FACTOR              ( MONT_FACTOR      ),
-  .MASK                ( MONT_MASK        ),
-  .CONST_3             ( CONST_3    ),
-  .CONST_4             ( CONST_4    ),
-  .CONST_8             ( CONST_8    )
+  .FP_TYPE            ( jb_point_t ),
+  .FE_TYPE            ( fe_t       ),
+  .P                  ( P          ),
+  .NUM_CORES          ( NUM_CORES ),
+  .NUM_ARITH          ( NUM_ARITH ),
+  .NUM_IN             ( NUM_IN     ),
+  .REDUCE_BITS        ( MONT_REDUCE_BITS ),
+  .FACTOR             ( MONT_FACTOR      ),
+  .MASK               ( MONT_MASK        ),
+  .CONST_3            ( CONST_3    ),
+  .CONST_4            ( CONST_4    ),
+  .CONST_8            ( CONST_8    )
 )
 multiexp_top (
   .i_clk ( clk ),
@@ -79,6 +80,7 @@ begin
   logic [common_pkg::MAX_SIM_BYTS*8-1:0] get_dat;
   jb_point_t out;
   af_point_t expected;
+  cnt = DAT_BITS-1;
 
   in_p = new[NUM_IN];
   in_s = new[NUM_IN];
@@ -87,14 +89,18 @@ begin
 
   for (int i = 0; i < NUM_IN; i++) begin
     in_p[i] = jb_to_mont(point_mult(random_vector((DAT_BITS+7)/8) % P, G1_JB));
+    $display("Input point #%d", i);
+    print_jb_point(in_p[i]);
     in_s[i] = random_vector((DAT_BITS+7)/8) % P;
+    $display("Key 0x%x", in_s[i]);
   end
 
   expected = to_affine(multiexp_batch(in_s, in_p));
-
+  
   fork
     for(int j = 0; j < DAT_BITS; j++) begin
       for (int i = 0; i < NUM_IN; i++) i_pnt_scl_if.put_stream({in_p[i], in_s[i]}, (DAT_IN0+7)/8, 0);
+      cnt--;
     end
     begin
       o_pnt_if.get_stream(get_dat, get_len, 0);
