@@ -258,6 +258,38 @@ package bn128_pkg;
     end
     return res;
   endfunction
+  
+  // Function that emulates how multi-exp is calculated on the FPGA using parallel batching
+  function jb_point_t multiexp_parallel_batch(input int NUM_CORES, input logic [DAT_BITS-1:0] s [], input jb_point_t p []);
+    logic [DAT_BITS-1:0] s_int [][];
+    jb_point_t  p_int [][];
+    jb_point_t res_int [];
+    jb_point_t res;
+    int incr;
+    p_int = new[NUM_CORES];
+    s_int = new[NUM_CORES];
+    res_int = new[NUM_CORES];
+    
+    // Split into parallel core arrays
+    for (int i = 0; i < NUM_CORES; i++) begin
+      p_int[i] = new[s.size()/NUM_CORES];
+      s_int[i] = new[s.size()/NUM_CORES];
+      incr = 0;
+      for (int j = i; j < s.size(); j=j+NUM_CORES) begin
+        p_int[i][incr] = p[j];
+        s_int[i][incr] = s[j];
+        incr++;
+      end
+    end
+  
+    res = 0;
+    for (int i = 0; i < NUM_CORES; i++) begin
+       res_int[i] = multiexp_batch(s_int[i], p_int[i]);
+       res = add_jb_point(res_int[i], res);
+    end
+    
+    return res;
+  endfunction  
 
   // Function for G1 multiexp, using batch doubles and window method
   function jb_point_t multiexp_window(input logic [DAT_BITS-1:0] s [], jb_point_t p []);

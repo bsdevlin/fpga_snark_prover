@@ -106,6 +106,7 @@ always_ff @ (posedge i_clk) begin
               o_pnt_if.dat <= 0;
               state <= ADD;
             end else begin
+            // This is the state used when collapsing multiple core's results together
               i_pnt_scl_if.rdy <= 1;
               add_val_i <= 1;
               add_dat_i <= i_pnt_scl_if.dat[$bits(FE_TYPE) +: $bits(FP_TYPE)];
