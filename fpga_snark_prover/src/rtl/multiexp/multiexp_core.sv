@@ -33,7 +33,6 @@ module multiexp_core #(
   parameter type FE_TYPE,
   parameter      KEY_BITS,
   parameter      CTL_BITS,
-  parameter      NUM_IN,      // Number of points / scalars in memory to operate on
   // If using montgomery form need to override these
   parameter FE_TYPE CONST_3 = 3,
   parameter FE_TYPE CONST_4 = 4,
@@ -45,6 +44,8 @@ module multiexp_core #(
   if_axi_stream.sink   i_pnt_scl_if,     // Interface to scalar and point stream pair - {FP_TYPE, FE_TYPE}
                                          // Ctl[0] == 0 is normal mode. Ctl[0] == 1 is single add mode
   if_axi_stream.source o_pnt_if,         // Interface for final point output
+  
+  input [63:0] i_num_in, // Number of input points to operate on - max 2^64 -1
 
   // Interfaces to arithmetic units
   if_axi_stream.source o_mul_if,
@@ -65,8 +66,9 @@ if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) sub_if_o [1:0] (i_cl
 if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   mul_if_i [1:0] (i_clk);
 if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) mul_if_o [1:0] (i_clk);
 
+logic [63:0] num_in;
 logic [$clog2(KEY_BITS)-1:0] key_cnt;
-logic [(NUM_IN > 1 ? $clog2(NUM_IN) : 1)-1:0] in_cnt;
+logic [63:0] in_cnt;
 
 FP_TYPE dbl_pnt_o, add_pnt_o, add_dat_i;
 logic add_val_o, add_rdy_i, add_rdy_o, add_val_i, add_err_o;
@@ -83,6 +85,7 @@ always_ff @ (posedge i_clk) begin
     add_rdy_i <= 0;
     dbl_rdy_i <= 0;
     add_dat_i <= 0;
+    num_in <= 0;
   end else begin
 
     dbl_rdy_i <= 1;
@@ -96,6 +99,7 @@ always_ff @ (posedge i_clk) begin
 
     case (state)
       IDLE: begin
+        num_in <= i_num_in;
         key_cnt <= KEY_BITS-1;
         in_cnt <= 0;
         i_pnt_scl_if.rdy <= 0;  
@@ -112,7 +116,7 @@ always_ff @ (posedge i_clk) begin
               add_dat_i <= i_pnt_scl_if.dat[$bits(FE_TYPE) +: $bits(FP_TYPE)];
               o_pnt_if.val <= 0;
               key_cnt <= 0;
-              in_cnt <= NUM_IN-1;
+              in_cnt <= i_num_in-1;
               state <= ADD_WAIT;
             end
           end
@@ -137,7 +141,7 @@ always_ff @ (posedge i_clk) begin
             add_val_i <= 1;
             add_dat_i <= i_pnt_scl_if.dat[$bits(FE_TYPE) +: $bits(FP_TYPE)];
             state <= ADD_WAIT;
-          end else if (in_cnt == NUM_IN-1) begin
+          end else if (in_cnt == num_in-1) begin
             in_cnt <= 0;
             if (key_cnt == 0) begin
               o_pnt_if.val <= 1;
@@ -159,7 +163,7 @@ always_ff @ (posedge i_clk) begin
             // This means the points were the same so we need to double
             dbl_val_i <= 1;
           end else begin          
-            if (in_cnt == NUM_IN-1) begin
+            if (in_cnt == num_in-1) begin
               in_cnt <= 0;
               if (key_cnt == 0) begin
                 o_pnt_if.val <= 1;

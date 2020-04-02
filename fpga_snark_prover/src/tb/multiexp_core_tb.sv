@@ -50,6 +50,8 @@ if_axi_stream #(.DAT_BYTS((DAT_IN1+7)/8), .CTL_BITS(CTL_BITS)) o_pnt_if (clk);
 jb_point_t in_p [];
 fe_t in_s [];
 
+logic [63:0] num_in;
+
 logic [$clog2(DAT_BITS*NUM_IN):0] cnt;
 
 initial begin
@@ -67,7 +69,6 @@ multiexp_core #(
   .FE_TYPE  ( fe_t       ),
   .KEY_BITS ( KEY_BITS   ),
   .CTL_BITS ( CTL_BITS   ),
-  .NUM_IN   ( NUM_IN     ),
   .CONST_3  ( CONST_3    ),
   .CONST_4  ( CONST_4    ),
   .CONST_8  ( CONST_8    )
@@ -76,6 +77,7 @@ multiexp_core (
   .i_clk ( clk ),
   .i_rst ( rst ),
   .i_pnt_scl_if ( i_pnt_scl_if ),
+  .i_num_in ( num_in ),
   .o_pnt_if ( o_pnt_if ),
   .o_mul_if( mul_o_if ),
   .i_mul_if( mul_i_if ),
@@ -138,6 +140,7 @@ begin
   
   in_p = new[NUM_IN];
   in_s = new[NUM_IN];
+  num_in = NUM_IN;
 
   $display("Running test0...");
 

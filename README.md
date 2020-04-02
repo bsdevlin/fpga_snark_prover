@@ -1,4 +1,4 @@
-This repo contains the results of an Ethereum grant into developing a FPGA SNARK prover. The project is still in progress and not expected to be completed until Q2 of 2020.
+This repo contains the results of an Ethereum grant into developing a FPGA SNARK prover. The project is still in progress.
 
 # Project goals
 

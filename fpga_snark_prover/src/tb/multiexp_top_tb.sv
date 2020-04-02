@@ -41,6 +41,7 @@ if_axi_stream #(.DAT_BYTS((DAT_IN1+7)/8), .CTL_BITS(8)) o_pnt_if (clk);
 jb_point_t in_p [];
 fe_t in_s [];
 logic [$clog2(DAT_BITS)-1:0] cnt;
+logic [63:0] num_in;
 
 initial begin
   rst = 0;
@@ -58,7 +59,6 @@ multiexp_top #(
   .P                  ( P          ),
   .NUM_CORES          ( NUM_CORES ),
   .NUM_ARITH          ( NUM_ARITH ),
-  .NUM_IN             ( NUM_IN     ),
   .REDUCE_BITS        ( MONT_REDUCE_BITS ),
   .FACTOR             ( MONT_FACTOR      ),
   .MASK               ( MONT_MASK        ),
@@ -70,6 +70,7 @@ multiexp_top (
   .i_clk ( clk ),
   .i_rst ( rst ),
   .i_pnt_scl_if ( i_pnt_scl_if ),
+  .i_num_in ( num_in ),
   .o_pnt_if ( o_pnt_if )
 );
 
@@ -88,6 +89,7 @@ begin
 
   in_p = new[NUM_IN];
   in_s = new[NUM_IN];
+  num_in = NUM_IN;
 
   $display("Running test0...");
 
@@ -127,7 +129,6 @@ begin
   in_s.delete();
 end
 endtask;
-
 
 initial begin
 

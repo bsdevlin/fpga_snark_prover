@@ -28,7 +28,6 @@ module multiexp_top
   parameter type FP_TYPE,
   parameter type FE_TYPE,
   parameter      P,
-  parameter      NUM_IN,     // Number of points / scalars in memory to operate on
   parameter      NUM_CORES,  // How many parallel cores do we instantiate, should be a power of 2
   parameter      NUM_ARITH,  // How many arithmetic units (mult, add, sub). Divided evenly over number of cores, should be a power of 2
   // If using montgomery form need to override these
@@ -41,6 +40,8 @@ module multiexp_top
 )(
   input i_clk,
   input i_rst,
+  
+  input [63:0] i_num_in, // Number of input points to operate on - max 2^64 -1
 
   if_axi_stream.sink i_pnt_scl_if,   // Input stream of points and scalars
   if_axi_stream.source o_pnt_if // Final output
@@ -52,10 +53,12 @@ localparam CTL_BITS = 8;
 localparam CTL_BITS_INT = CTL_BITS + $clog2(NUM_CORE_IN_GRP);
 localparam DAT_BITS = $bits(FE_TYPE);
 
+logic [63:0] num_in;
+
 logic [(NUM_CORES == 1 ? 1 : $clog2(NUM_CORES))-1:0] core_sel;    // Used when muxing traffic into the cores
 logic [$clog2(NUM_CORES):0] final_stage; // When doing the final add
 logic [$clog2(DAT_BITS)-1:0] key_cnt;
-logic [(NUM_IN > 1 ? $clog2(NUM_IN) : 1)-1:0] in_cnt;
+logic [63:0] in_cnt;
 logic [NUM_CORES-1:0] core_rdy;
 
 
@@ -74,6 +77,7 @@ end
 always_ff @ (posedge i_clk) begin
   if (i_rst) begin
     state <= IDLE;
+    num_in <= 0;
     core_sel <= 0;
     o_pnt_if.reset_source();
     key_cnt <= 0;
@@ -92,6 +96,7 @@ always_ff @ (posedge i_clk) begin
       
     case (state)
       IDLE: begin
+        num_in <= i_num_in;
         core_sel <= 0;
         key_cnt <= 0;
         in_cnt <= 0;
@@ -104,8 +109,8 @@ always_ff @ (posedge i_clk) begin
       MULTI_EXP: begin
         if (i_pnt_scl_if.val && i_pnt_scl_if.rdy) begin
           core_sel <= (core_sel + 1) % NUM_CORES;
-          in_cnt <= (in_cnt + 1) % NUM_IN;
-          if (in_cnt == NUM_IN-1) begin
+          in_cnt <= (in_cnt == (num_in - 1)) ? 0 : (in_cnt + 1);
+          if (in_cnt == num_in-1) begin
             key_cnt <= key_cnt + 1;
             if (key_cnt == DAT_BITS-1) begin
               core_sel <= 0;
@@ -142,9 +147,6 @@ always_ff @ (posedge i_clk) begin
 end
 
 // Instantiate the cores and arithmetic blocks
-
-
-
 
 genvar gx, gy;
 generate
@@ -206,7 +208,6 @@ generate
           .FE_TYPE  ( FE_TYPE  ),
           .KEY_BITS ( DAT_BITS ),
           .CTL_BITS ( CTL_BITS ),
-          .NUM_IN   ( NUM_IN / NUM_CORES ),
           .CONST_3  ( CONST_3  ),
           .CONST_4  ( CONST_4  ),
           .CONST_8  ( CONST_8  )
@@ -215,6 +216,7 @@ generate
           .i_clk ( i_clk ),
           .i_rst ( i_rst ),
           .i_pnt_scl_if ( pnt_scl_if_i ),
+          .i_num_in ( num_in / NUM_CORES ), // NUM_CORES should be a power of 2
           .o_pnt_if ( pnt_if_o    ),
           .o_mul_if( mul_if_o[gy] ),
           .i_mul_if( mul_if_i[gy] ),
