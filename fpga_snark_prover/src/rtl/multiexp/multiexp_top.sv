@@ -41,7 +41,7 @@ module multiexp_top
   input i_clk,
   input i_rst,
   
-  input [63:0] i_num_in, // Number of input points to operate on - max 2^64 -1
+  input [31:0] i_log2_num_in, // Log2 umber of input points to operate on - max is 2^64 - 1
 
   if_axi_stream.sink i_pnt_scl_if,   // Input stream of points and scalars
   if_axi_stream.source o_pnt_if // Final output
@@ -96,7 +96,7 @@ always_ff @ (posedge i_clk) begin
       
     case (state)
       IDLE: begin
-        num_in <= i_num_in;
+        num_in <= 1 << i_log2_num_in;
         core_sel <= 0;
         key_cnt <= 0;
         in_cnt <= 0;
