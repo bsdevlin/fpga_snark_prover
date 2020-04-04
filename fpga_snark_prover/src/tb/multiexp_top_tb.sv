@@ -70,7 +70,7 @@ multiexp_top (
   .i_clk ( clk ),
   .i_rst ( rst ),
   .i_pnt_scl_if ( i_pnt_scl_if ),
-  .i_log2_num_in ( $clog2(num_in) ),
+  .i_num_in ( num_in ),
   .o_pnt_if ( o_pnt_if )
 );
 

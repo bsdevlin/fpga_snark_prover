@@ -20,7 +20,7 @@ module bn128_multiexp_wrapper
 (
   input                i_clk,
   input                i_rst,
-  input  logic [31:0]  i_log2_num_in,
+  input  logic [63:0]  i_num_in,
   
   if_axi_stream.sink   i_scl_if,
   if_axi_stream.sink   i_pnt_if,
@@ -96,7 +96,7 @@ multiexp_top #(
 multiexp_top (
   .i_clk         ( i_clk         ),
   .i_rst         ( i_rst         ),
-  .i_log2_num_in ( i_log2_num_in ),
+  .i_num_in      ( i_num_in      ),
   .i_pnt_scl_if  ( i_pnt_scl_if  ),
   .o_pnt_if      ( o_pnt_if      )
 );
