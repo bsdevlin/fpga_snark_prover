@@ -15,64 +15,12 @@
 #   run results please launch the synthesis/implementation runs as needed.
 #
 #*****************************************************************************************
-# NOTE: In order to use this script for source control purposes, please make sure that the
-#       following files are added to the source control system:-
-#
-# 1. This project restoration tcl script (create_project.tcl) that was generated.
-#
-# 2. The following source(s) files that were local or imported into the original project.
-#    (Please see the '$orig_proj_dir' and '$origin_dir' variable setting below at the start of the script)
-#
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_control_s_axi.v"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_example.sv"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_example_axi_read_master.sv"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_example_axi_write_master.sv"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_example_counter.sv"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/multiexp_kernel.v"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/package_kernel_tcl."
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/run_hls_tcl."
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/post_synth_impl_tcl."
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/main_c."
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/Makefile."
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_cpp."
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/multiexp_kernel/component.xml"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_ooc.xdc"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_user.xdc"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/multiexp_kernel_ex.srcs/sources_1/ip/slv_result_vip/slv_result_vip.xci"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/multiexp_kernel_ex.srcs/sources_1/ip/slv_scalar_vip/slv_scalar_vip.xci"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/multiexp_kernel_ex.srcs/sources_1/ip/slv_point_vip/slv_point_vip.xci"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/multiexp_kernel_ex.srcs/sources_1/ip/control_multiexp_kernel_vip/control_multiexp_kernel_vip.xci"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_tb.sv"
-#    "c:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/kernel/multiexp/multiexp_kernel_ex/imports/post_synth_impl.tcl"
-#
-# 3. The following remote source files that were added to the original project:-
-#
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/util/src/rtl/adder_pipe.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/ip_cores/adder_tree/src/rtl/adder_tree_log_n.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/fifo/src/rtl/axi_stream_fifo.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/rtl/top/bn128_pkg.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/common/src/rtl/common_pkg.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/common/src/rtl/common_if.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/ec/src/rtl/ec_point_add.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/ec/src/rtl/ec_point_dbl.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/ip_cores/montgomery_mult/src/rtl/montgomery_mult.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/ip_cores/montgomery_mult/src/rtl/montgomery_mult_wrapper.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/rtl/multiexp/multiexp_core.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/rtl/multiexp/multiexp_top.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/fpga_snark_prover/src/rtl/multiexp/multiexp_wrapper.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/ip_cores/multiplier/src/rtl/multiplier.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/util/src/rtl/packet_arb.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/common/src/rtl/pipeline_if.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/common/src/rtl/pipeline_if_single.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/util/src/rtl/resource_share.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/util/src/rtl/subtracter_pipe.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/sha256/src/rtl/sha256_pkg.sv"
-#    "C:/Users/bsdevlin/git/fpga_snark_prover/submodules/fpga/ip_cores/blake2b/src/rtl/blake2b_pkg.sv"
-#
-#*****************************************************************************************
 
 # Set the reference directory for source file relative paths (by default the value is script directory path)
-set origin_dir "."
+set origin_dir "../../../"
+
+# Make sure we are in the right directory
+cd [file dirname [file normalize [info script]]]
 
 # Use origin directory path location variable, if specified in the tcl shell
 if { [info exists ::origin_dir_loc] } {
@@ -134,9 +82,6 @@ if { $::argc > 0 } {
     }
   }
 }
-
-# Set the directory path for the original project from where this script was exported
-set orig_proj_dir "[file normalize "$origin_dir/multiexp/multiexp_kernel_ex"]"
 
 # Create project
 create_project ${_xil_proj_name_} ./${_xil_proj_name_} -part xcvu9p-flga2104-2-e
