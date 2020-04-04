@@ -1,6 +1,9 @@
+FPGA SNARK prover targeting the bn128 curve.
+======================
+
 This repo contains the results of an Ethereum grant into developing a FPGA SNARK prover. The project is still in progress.
 
-# Project goals
+## Project goals
 
 The goal of this project is to accelerate zk-SNARK proof creation by offloading operations to a FPGA. The project deliverables are split into 3 main goals:
  * FPGA acceleration of bn128 curve arithmetic
@@ -14,3 +17,13 @@ The goal of this project is to accelerate zk-SNARK proof creation by offloading 
  * QAP evaluation - (i)FFT - implements CALC_H and all sub operations
    - Implement polynomial field arithmetic on FPGA
    - Implement the FFT / iFFT on FPGA
+   
+## Folder structure
+
+```
+fpga_snark_prover   -- Files directly related to this project.
+ip_cores/           -- RTL ip cores for general use in this project.
+submodules/         -- Git submodules that reference other repositories.**
+```
+
+** Make sure you have synced the git submodules folder in ```fpga_snark_prover/submodules/```.
