@@ -186,12 +186,8 @@ set files [list \
  [file normalize "${origin_dir}/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_example_axi_write_master.sv" ]\
  [file normalize "${origin_dir}/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_example_counter.sv" ]\
  [file normalize "${origin_dir}/multiexp/multiexp_kernel_ex/imports/multiexp_kernel.v" ]\
- [file normalize "${origin_dir}/multiexp/multiexp_kernel_ex/imports/package_kernel_tcl." ]\
- [file normalize "${origin_dir}/multiexp/multiexp_kernel_ex/imports/run_hls_tcl." ]\
- [file normalize "${origin_dir}/multiexp/multiexp_kernel_ex/imports/post_synth_impl_tcl." ]\
- [file normalize "${origin_dir}/multiexp/multiexp_kernel_ex/imports/main_c." ]\
- [file normalize "${origin_dir}/multiexp/multiexp_kernel_ex/imports/Makefile." ]\
- [file normalize "${origin_dir}/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_cpp." ]\
+ [file normalize "${origin_dir}/multiexp/multiexp_kernel_ex/imports/package_kernel.tcl" ]\
+ [file normalize "${origin_dir}/multiexp/multiexp_kernel_ex/imports/post_synth_impl.tcl" ]\
  [file normalize "${origin_dir}/multiexp/multiexp_kernel_ex/multiexp_kernel/component.xml" ]\
 ]
 set added_files [add_files -fileset sources_1 $files]
@@ -544,54 +540,19 @@ set_property -name "used_in_implementation" -value "1" -objects $file_obj
 set_property -name "used_in_simulation" -value "1" -objects $file_obj
 set_property -name "used_in_synthesis" -value "1" -objects $file_obj
 
-set file "imports/package_kernel_tcl."
+set file "imports/package_kernel.tcl"
 set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
-set_property -name "file_type" -value "Unknown" -objects $file_obj
+set_property -name "file_type" -value "tcl" -objects $file_obj
 set_property -name "is_enabled" -value "1" -objects $file_obj
 set_property -name "is_global_include" -value "0" -objects $file_obj
 set_property -name "library" -value "xil_defaultlib" -objects $file_obj
 set_property -name "path_mode" -value "RelativeFirst" -objects $file_obj
 set_property -name "used_in" -value "" -objects $file_obj
 
-set file "imports/run_hls_tcl."
-set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
-set_property -name "file_type" -value "Unknown" -objects $file_obj
-set_property -name "is_enabled" -value "1" -objects $file_obj
-set_property -name "is_global_include" -value "0" -objects $file_obj
-set_property -name "library" -value "xil_defaultlib" -objects $file_obj
-set_property -name "path_mode" -value "RelativeFirst" -objects $file_obj
-set_property -name "used_in" -value "" -objects $file_obj
 
-set file "imports/post_synth_impl_tcl."
+set file "imports/post_synth_impl.tcl"
 set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
-set_property -name "file_type" -value "Unknown" -objects $file_obj
-set_property -name "is_enabled" -value "1" -objects $file_obj
-set_property -name "is_global_include" -value "0" -objects $file_obj
-set_property -name "library" -value "xil_defaultlib" -objects $file_obj
-set_property -name "path_mode" -value "RelativeFirst" -objects $file_obj
-set_property -name "used_in" -value "" -objects $file_obj
-
-set file "imports/main_c."
-set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
-set_property -name "file_type" -value "Unknown" -objects $file_obj
-set_property -name "is_enabled" -value "1" -objects $file_obj
-set_property -name "is_global_include" -value "0" -objects $file_obj
-set_property -name "library" -value "xil_defaultlib" -objects $file_obj
-set_property -name "path_mode" -value "RelativeFirst" -objects $file_obj
-set_property -name "used_in" -value "" -objects $file_obj
-
-set file "imports/Makefile."
-set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
-set_property -name "file_type" -value "Unknown" -objects $file_obj
-set_property -name "is_enabled" -value "1" -objects $file_obj
-set_property -name "is_global_include" -value "0" -objects $file_obj
-set_property -name "library" -value "xil_defaultlib" -objects $file_obj
-set_property -name "path_mode" -value "RelativeFirst" -objects $file_obj
-set_property -name "used_in" -value "" -objects $file_obj
-
-set file "imports/multiexp_kernel_cpp."
-set file_obj [get_files -of_objects [get_filesets sources_1] [list "*$file"]]
-set_property -name "file_type" -value "Unknown" -objects $file_obj
+set_property -name "file_type" -value "tcl" -objects $file_obj
 set_property -name "is_enabled" -value "1" -objects $file_obj
 set_property -name "is_global_include" -value "0" -objects $file_obj
 set_property -name "library" -value "xil_defaultlib" -objects $file_obj
