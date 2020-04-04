@@ -20,7 +20,7 @@ The goal of this project is to accelerate zk-SNARK proof creation by offloading 
    - Implement the FFT / iFFT on FPGA
    
 Each goal will have a corresponding RTL top level and source in the ```fpga_snark_prover``` folder which can be ran separately, as well as a RTL kernel 
-pre-compiled (along with instructions to compile the binary if needed). The kernels will be able to run in a Vivado Vitis (SDAccel) environment as accelerators,
+pre-compiled (along with instructions to compile the binary if needed). The kernels will be able to run in a Amazon AWS Vivado Vitis (SDAccel) environment as accelerators,
 interfaced to user logic (look in ```fpga_snark_prover\src\kernel``` to see this). 
    
 ## Folder structure
