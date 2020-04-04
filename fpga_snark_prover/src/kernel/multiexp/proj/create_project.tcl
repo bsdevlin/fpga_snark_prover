@@ -17,7 +17,7 @@
 #*****************************************************************************************
 
 # Set the reference directory for source file relative paths (by default the value is script directory path)
-set origin_dir "../../../"
+set origin_dir "../../"
 
 # Make sure we are in the right directory
 cd [file dirname [file normalize [info script]]]
