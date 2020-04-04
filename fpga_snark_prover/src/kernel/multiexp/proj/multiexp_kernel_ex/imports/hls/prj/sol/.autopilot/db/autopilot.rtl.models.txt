@@ -1,6 +1,0 @@
-multiexp_kernel_point_input_buffer
-multiexp_kernel_control_s_axi
-multiexp_kernel_point_m_axi
-multiexp_kernel_scalar_m_axi
-multiexp_kernel_result_m_axi
-multiexp_kernel
