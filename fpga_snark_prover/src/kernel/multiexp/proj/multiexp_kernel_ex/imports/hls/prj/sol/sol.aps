@@ -1,0 +1,28 @@
+<AutoPilot:solution xmlns:AutoPilot="com.autoesl.autopilot.solution">
+    <name>
+        <value string="sol"/>
+    </name>
+    <project>
+        <value string="prj"/>
+    </project>
+    <targetInfo>
+        <TargetInfo value="xcvu9p:-flga2104:-2-e"/>
+    </targetInfo>
+    <libraryList>
+        <library value="xilinx/virtexuplus/virtexuplus" name="DefaultPlatform"/>
+        <library value="xilinx/virtexuplus/virtexuplus_fpv7" name="DefaultPlatform"/>
+    </libraryList>
+    <config>
+        <config_sdx optimization_level="none" target="xocc"/>
+        <config_export vivado_optimization_level="0" vivado_phys_opt="none"/>
+        <config_compile pipeline_loops="64" name_max_length="80"/>
+        <config_schedule enable_dsp_full_reg="1"/>
+        <config_rtl register_reset_num="3" module_auto_prefix="0"/>
+        <config_interface m_axi_addr64="1"/>
+        <schedule model="multiexp_kernel"/>
+    </config>
+    <clockList>
+        <clock name="default" period="10ns" default="false"/>
+    </clockList>
+</AutoPilot:solution>
+
