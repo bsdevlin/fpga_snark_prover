@@ -596,7 +596,7 @@ if {[string equal [get_filesets -quiet constrs_1] ""]} {
 set obj [get_filesets constrs_1]
 
 # Add/Import constrs file and set constrs file properties
-set file "[file normalize "$origin_dir/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_ooc.xdc"]"
+set file "[file normalize "multiexp_kernel_ex/imports/multiexp_kernel_ooc.xdc"]"
 set file_added [add_files -norecurse -fileset $obj [list $file]]
 set file "imports/multiexp_kernel_ooc.xdc"
 set file_obj [get_files -of_objects [get_filesets constrs_1] [list "*$file"]]
@@ -613,7 +613,7 @@ set_property -name "used_in_implementation" -value "0" -objects $file_obj
 set_property -name "used_in_synthesis" -value "1" -objects $file_obj
 
 # Add/Import constrs file and set constrs file properties
-set file "[file normalize "$origin_dir/multiexp/multiexp_kernel_ex/imports/multiexp_kernel_user.xdc"]"
+set file "[file normalize "multiexp_kernel_ex/imports/multiexp_kernel_user.xdc"]"
 set file_added [add_files -norecurse -fileset $obj [list $file]]
 set file "imports/multiexp_kernel_user.xdc"
 set file_obj [get_files -of_objects [get_filesets constrs_1] [list "*$file"]]
