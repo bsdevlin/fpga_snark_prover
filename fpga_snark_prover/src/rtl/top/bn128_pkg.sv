@@ -42,6 +42,11 @@ package bn128_pkg;
   localparam CONST_4 = USE_MONT_MULT == "YES" ? fe_to_mont(256'd4) : 256'd4;
   localparam CONST_8 = USE_MONT_MULT == "YES" ? fe_to_mont(256'd8) : 256'd8;
 
+  localparam FE2_CONST_1 = USE_MONT_MULT == "YES" ? {256'd0, fe_to_mont(256'd1)} : {256'd0, 256'd1};
+  localparam FE2_CONST_3 = USE_MONT_MULT == "YES" ? {256'd0, fe_to_mont(256'd3)} : {256'd0, 256'd3};
+  localparam FE2_CONST_4 = USE_MONT_MULT == "YES" ? {256'd0, fe_to_mont(256'd4)} : {256'd0, 256'd4};
+  localparam FE2_CONST_8 = USE_MONT_MULT == "YES" ? {256'd0, fe_to_mont(256'd8)} : {256'd0, 256'd8};
+
   /////////////////////////// Typedefs ///////////////////////////
   typedef logic [DAT_BITS-1:0] fe_t;
   typedef fe_t [1:0] fe2_t;
@@ -170,7 +175,7 @@ package bn128_pkg;
     fe2_inv[1] = fe_mul(fe_sub(P, a[1]), factor);
   endfunction
 
-  // Function for point doubling
+  // Function for G1 point doubling
   function jb_point_t dbl_jb_point(input jb_point_t p);
     fe_t I_X, I_Y, I_Z, A, B, C, D, E, X, Y, Z;
     if (p.z == 0) return p;
@@ -194,7 +199,7 @@ package bn128_pkg;
     return dbl_jb_point;
   endfunction
 
-  // Function for point addition
+  // Function for G1 point addition
   function jb_point_t add_jb_point(jb_point_t p1, p2);
     fe_t A, U1, U2, S1, S2, H, H3, R;
     if (p1.z == 0) return p2;
@@ -222,6 +227,59 @@ package bn128_pkg;
     add_jb_point.y = fe_mul(S1, H3);
     add_jb_point.y = fe_sub(A, add_jb_point.y);
   endfunction
+  
+  // Function for G2 point doubling
+  function fp2_jb_point_t dbl_fp2_jb_point(input fp2_jb_point_t p);
+    fe2_t I_X, I_Y, I_Z, A, B, C, D, E, X, Y, Z;
+    if (p.z == 0) return p;
+    I_X = p.x;
+    I_Y = p.y;
+    I_Z = p.z;
+    A = fe2_mul(I_Y, I_Y);
+    B = fe2_mul(fe2_mul(FE2_CONST_4, I_X), A);
+    C = fe2_mul(A, A);
+    C = fe2_mul(FE2_CONST_8, C);
+    D = fe2_mul(fe2_mul(FE2_CONST_3, I_X), I_X);
+    X = fe2_mul(D, D);
+    E = fe2_add(B, B);
+    X = fe2_sub(X, E);
+    Y = fe2_mul(D, fe_sub(B, X));
+    Y = fe2_sub(Y, C);
+    Z = fe2_mul(fe2_add(I_Y, I_Y), I_Z);
+    dbl_fp2_jb_point.x = X;
+    dbl_fp2_jb_point.y = Y;
+    dbl_fp2_jb_point.z = Z;
+    return dbl_fp2_jb_point;
+  endfunction
+
+  // Function for G2 point addition
+  function fp2_jb_point_t add_fp2_jb_point(fp2_jb_point_t p1, p2);
+    fe2_t A, U1, U2, S1, S2, H, H3, R;
+    if (p1.z == 0) return p2;
+    if (p2.z == 0) return p1;
+    if (p1.y == p2.y && p1.x == p2.x) return (dbl_fp2_jb_point(p1));
+    U1 = fe2_mul(p1.x, p2.z);
+    U1 = fe2_mul(U1, p2.z);
+    U2 = fe2_mul(p2.x, p1.z);
+    U2 = fe2_mul(U2, p1.z);
+    S1 = fe2_mul(p1.y, p2.z);
+    S1 = fe2_mul(fe2_mul(S1, p2.z), p2.z);
+    S2 = fe2_mul(p2.y, p1.z);
+    S2 = fe2_mul(fe2_mul(S2, p1.z), p1.z);
+    H = fe2_sub(U2, U1);
+    R = fe2_sub(S2, S1);
+    H3 = fe2_mul(fe2_mul(H, H), H);
+    A = fe2_mul(fe2_mul(fe2_add(U1, U1), H), H);
+    add_fp2_jb_point.z = fe2_mul(fe2_mul(H, p1.z), p2.z);
+    add_fp2_jb_point.x = fe2_mul(R, R);
+    add_fp2_jb_point.x = fe2_sub(add_fp2_jb_point.x, H3);
+    add_fp2_jb_point.x = fe2_sub(add_fp2_jb_point.x, A);
+    A = fe2_mul(fe2_mul(U1, H), H);
+    A = fe2_sub(A, add_fp2_jb_point.x);
+    A = fe2_mul(A, R);
+    add_fp2_jb_point.y = fe2_mul(S1, H3);
+    add_fp2_jb_point.y = fe2_sub(A, add_fp2_jb_point.y);
+  endfunction  
 
   // Function for point multiplication
   function jb_point_t point_mult(input logic [DAT_BITS-1:0] c, jb_point_t p);
@@ -262,6 +320,21 @@ package bn128_pkg;
     end
     return res;
   endfunction
+  
+  // Function for G2 multiexp, using batched doubling
+  function fp2_jb_point_t fp2_multiexp_batch(input logic [DAT_BITS-1:0] s [], input fp2_jb_point_t p []);
+    fp2_jb_point_t res;
+    res = 0;
+    for (int i = DAT_BITS-1; i >= 0; i--) begin
+      res = dbl_fp2_jb_point(res);
+      for (int j = 0; j < s.size(); j++) begin
+        if (s[j][i] == 1) begin
+          res = add_fp2_jb_point(p[j], res);
+        end
+      end
+    end
+    return res;
+  endfunction  
   
   // Function that emulates how multi-exp is calculated on the FPGA using parallel batching
   function jb_point_t multiexp_parallel_batch(input int NUM_CORES, input logic [DAT_BITS-1:0] s [], input jb_point_t p []);
@@ -356,6 +429,11 @@ package bn128_pkg;
   function fe_t fe_to_mont(fe_t a);
     fe_to_mont = fe_mul_mont(a, MONT_RECIP_SQ);
   endfunction
+  
+  function fe2_t fe2_to_mont(fe2_t a);
+    fe2_to_mont[0] = fe_mul_mont(a[0], MONT_RECIP_SQ);
+    fe2_to_mont[1] = fe_mul_mont(a[1], MONT_RECIP_SQ);
+  endfunction
 
   function jb_point_t jb_to_mont(jb_point_t a);
     jb_to_mont.x = fe_to_mont(a.x);
@@ -366,12 +444,17 @@ package bn128_pkg;
   function fe_t fe_from_mont(fe_t a);
     fe_from_mont = fe_mul_mont(a, 256'd1);
   endfunction
+  
+  function fe2_t fe2_from_mont(fe2_t a);
+    fe2_from_mont[0] = fe_mul_mont(a[0], 256'd1);
+    fe2_from_mont[1] = fe_mul_mont(a[1], 256'd1);
+  endfunction  
 
   function jb_point_t jb_from_mont(jb_point_t a);
     jb_from_mont.x = fe_from_mont(a.x);
     jb_from_mont.y = fe_from_mont(a.y);
     jb_from_mont.z = fe_from_mont(a.z);
-  endfunction
+  endfunction  
 
   // Functions for converting to affine, and printing
   function af_point_t to_affine(jb_point_t p);
