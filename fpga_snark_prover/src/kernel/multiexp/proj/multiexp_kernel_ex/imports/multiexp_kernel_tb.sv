@@ -8,9 +8,23 @@ import slv_point_vip_pkg::*;
 import slv_scalar_vip_pkg::*;
 import slv_result_vip_pkg::*;
 import control_multiexp_kernel_vip_pkg::*;
+import bn128_pkg::*;
+import common_pkg::*;
 
 module multiexp_kernel_tb ();
-parameter integer LP_MAX_LENGTH = 8192;
+
+localparam NUM_IN = 8;
+parameter integer SCALAR_BYTES = 256/8;
+parameter integer POINT_BYTES = 512/8;
+parameter integer RESULT_BYTES = (256*3)/8;
+
+jb_point_t in_p [NUM_IN];
+fe_t in_s [NUM_IN];
+
+parameter integer SCALAR_MAX_BYTES = NUM_IN*SCALAR_BYTES;
+parameter integer POINT_MAX_BYTES = NUM_IN*POINT_BYTES;
+parameter integer RESULT_MAX_BYTES = 1*RESULT_BYTES;
+
 parameter integer LP_MAX_TRANSFER_LENGTH = 16384 / 4;
 parameter integer C_S_AXI_CONTROL_ADDR_WIDTH = 12;
 parameter integer C_S_AXI_CONTROL_DATA_WIDTH = 32;
@@ -43,8 +57,6 @@ parameter ISR_DONE_MASK          = 32'h00000001;
 parameter ISR_READY_MASK         = 32'h00000002;
 
 parameter integer LP_CLK_PERIOD_PS = 4000; // 250 MHz
-
-parameter NUM_IN = 4;
 
 //System Signals
 logic ap_clk = 0;
@@ -378,8 +390,13 @@ function void point_fill_memory(
   input bit [63:0] ptr,
   input integer    length
 );
-  for (longint unsigned slot = 0; slot < length; slot++) begin
-    point.mem_model.backdoor_memory_write_4byte(ptr + (slot * 4), slot);
+af_point_t p;
+  for (longint unsigned point_cnt = 0; point_cnt < length/POINT_BYTES; point_cnt++) begin
+    p = to_affine(point_mult(random_vector((DAT_BITS+7)/8) % P, jb_to_mont(G1_AF)));
+    in_p[point_cnt] = p;
+    for (longint unsigned wrd = 0; wrd < POINT_BYTES/4; wrd++) begin
+      point.mem_model.backdoor_memory_write_4byte(ptr + (point_cnt*POINT_BYTES) + (wrd * 4), p[32*wrd +: 32]);
+    end
   end
 endfunction
 
@@ -389,9 +406,14 @@ function void scalar_fill_memory(
   input bit [63:0] ptr,
   input integer    length
 );
-  for (longint unsigned slot = 0; slot < length; slot++) begin
-    scalar.mem_model.backdoor_memory_write_4byte(ptr + (slot * 4), slot);
+fe_t s;
+for (longint unsigned scalar_cnt = 0; scalar_cnt < length/SCALAR_BYTES; scalar_cnt++) begin
+  s = random_vector((SCALAR_BYTES+7)/8) % bn128_pkg::P;
+  in_s[scalar_cnt] = s;
+  for (longint unsigned wrd = 0; wrd < SCALAR_BYTES/4; wrd++) begin
+    scalar.mem_model.backdoor_memory_write_4byte(ptr + (scalar_cnt*SCALAR_BYTES) + (wrd * 4), s[32*wrd +: 32]);
   end
+end
 endfunction
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -778,95 +800,46 @@ task automatic backdoor_fill_memories();
 
   /////////////////////////////////////////////////////////////////////////////////////////////////
   // Backdoor fill the memory with the content.
-  point_fill_memory(point_p_ptr, LP_MAX_LENGTH);
+  point_fill_memory(point_p_ptr, POINT_MAX_BYTES);
 
   /////////////////////////////////////////////////////////////////////////////////////////////////
   // Backdoor fill the memory with the content.
-  scalar_fill_memory(scalar_p_ptr, LP_MAX_LENGTH);
+  scalar_fill_memory(scalar_p_ptr, SCALAR_MAX_BYTES);
 
   /////////////////////////////////////////////////////////////////////////////////////////////////
   // Backdoor fill the memory with the content.
-  result_fill_memory(result_p_ptr, LP_MAX_LENGTH);
+  result_fill_memory(result_p_ptr, RESULT_MAX_BYTES);
 
 endtask
 
 function automatic bit check_kernel_result();
   bit [31:0]        ret_rd_value = 32'h0;
   bit error_found = 0;
-  integer error_counter;
-  error_counter = 0;
-
-  /////////////////////////////////////////////////////////////////////////////////////////////////
-  // Checking memory connected to point
-  for (longint unsigned slot = 0; slot < LP_MAX_LENGTH; slot++) begin
-    ret_rd_value = point.mem_model.backdoor_memory_read_4byte(point_p_ptr + (slot * 4));
-    if (slot < LP_MAX_TRANSFER_LENGTH) begin
-      if (ret_rd_value != (slot + 1)) begin
-        $error("Memory Mismatch: point : @0x%x : Expected 0x%x -> Got 0x%x ", point_p_ptr + (slot * 4), slot + 1, ret_rd_value);
-        error_found |= 1;
-        error_counter++;
-      end
-    end else begin
-      if (ret_rd_value != slot) begin
-        $error("Memory Mismatch: point : @0x%x : Expected 0x%x -> Got 0x%x ", point_p_ptr + (slot * 4), slot, ret_rd_value);
-        error_found |= 1;
-        error_counter++;
-      end
-    end
-    if (error_counter > 5) begin
-      $display("Too many errors found. Exiting check of point.");
-      slot = LP_MAX_LENGTH;
-    end
-  end
-  error_counter = 0;
-
-  /////////////////////////////////////////////////////////////////////////////////////////////////
-  // Checking memory connected to scalar
-  for (longint unsigned slot = 0; slot < LP_MAX_LENGTH; slot++) begin
-    ret_rd_value = scalar.mem_model.backdoor_memory_read_4byte(scalar_p_ptr + (slot * 4));
-    if (slot < LP_MAX_TRANSFER_LENGTH) begin
-      if (ret_rd_value != (slot + 1)) begin
-        $error("Memory Mismatch: scalar : @0x%x : Expected 0x%x -> Got 0x%x ", scalar_p_ptr + (slot * 4), slot + 1, ret_rd_value);
-        error_found |= 1;
-        error_counter++;
-      end
-    end else begin
-      if (ret_rd_value != slot) begin
-        $error("Memory Mismatch: scalar : @0x%x : Expected 0x%x -> Got 0x%x ", scalar_p_ptr + (slot * 4), slot, ret_rd_value);
-        error_found |= 1;
-        error_counter++;
-      end
-    end
-    if (error_counter > 5) begin
-      $display("Too many errors found. Exiting check of scalar.");
-      slot = LP_MAX_LENGTH;
-    end
-  end
-  error_counter = 0;
+  jb_point_t out;
+  af_point_t expected, af_out;
+  
+  expected = to_affine(jb_from_mont(multiexp_batch(in_s, in_p)));
 
   /////////////////////////////////////////////////////////////////////////////////////////////////
   // Checking memory connected to result
-  for (longint unsigned slot = 0; slot < LP_MAX_LENGTH; slot++) begin
+  for (longint unsigned slot = 0; slot < (RESULT_MAX_BYTES+3)/4; slot++) begin
     ret_rd_value = result.mem_model.backdoor_memory_read_4byte(result_p_ptr + (slot * 4));
-    if (slot < LP_MAX_TRANSFER_LENGTH) begin
-      if (ret_rd_value != (slot + 1)) begin
-        $error("Memory Mismatch: result : @0x%x : Expected 0x%x -> Got 0x%x ", result_p_ptr + (slot * 4), slot + 1, ret_rd_value);
-        error_found |= 1;
-        error_counter++;
-      end
-    end else begin
-      if (ret_rd_value != slot) begin
-        $error("Memory Mismatch: result : @0x%x : Expected 0x%x -> Got 0x%x ", result_p_ptr + (slot * 4), slot, ret_rd_value);
-        error_found |= 1;
-        error_counter++;
-      end
-    end
-    if (error_counter > 5) begin
-      $display("Too many errors found. Exiting check of result.");
-      slot = LP_MAX_LENGTH;
-    end
+    out = out << 32;
+    out[31:0] = ret_rd_value;
   end
-  error_counter = 0;
+  
+  $display("Expected:");
+  $display("x:(0x%h)", expected.x);
+  $display("y:(0x%h)", expected.y);
+  af_out = to_affine(jb_from_mont(out));
+  
+  if(af_out != expected) begin
+    error_found = 1;
+    $display("Was: ");
+    $display("x:(0x%h)", af_out.x);
+    $display("y:(0x%h)", af_out.y);
+    $display("ERROR: Output did not match");
+  end
 
   return(error_found);
 endfunction
