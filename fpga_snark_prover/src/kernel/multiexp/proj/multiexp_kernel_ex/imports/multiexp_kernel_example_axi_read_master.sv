@@ -188,9 +188,6 @@ end
 
 assign ctrl_done = done;
 
-always @(posedge aclk) begin
-  start_d1 <= ctrl_start;
-end
 
 // Store the address and transfer size after some pre-processing.
 always @(posedge aclk) begin
