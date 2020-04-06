@@ -234,6 +234,8 @@ generate
       .REDUCE_BITS ( REDUCE_BITS  ),
       .FACTOR      ( FACTOR       ),
       .MASK        ( MASK         ),
+      .MULT_TYPE   ( "ACCUM"      ),
+      .HIGH_PERF   ( "YES"        ),
       .P           ( P            ),
       .A_DSP_W     ( 27           ),
       .B_DSP_W     ( 17           )

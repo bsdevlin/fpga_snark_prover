@@ -24,6 +24,8 @@ module montgomery_mult_wrapper #(
   parameter                A_DSP_W = 26,
   parameter                B_DSP_W = 17,
   parameter                HIGH_PERF = "YES", // Each multiplier interface gets a dedicated multiplier
+  parameter                MULT_TYPE = "ACCUM",  // KARATSUBA or ACCUM
+  
   parameter                REDUCE_BITS,
   parameter [DAT_BITS-1:0] FACTOR,
   parameter [DAT_BITS-1:0] MASK,
@@ -36,6 +38,7 @@ module montgomery_mult_wrapper #(
 );
 
 localparam CTL_BITS_INT = CTL_BITS + 4;
+localparam NUM_ACCUM_PIPE = 2;
 
 if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS_INT)) mul_o_if [3:0] (i_clk);
 if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS_INT)) mul_i_if [3:0] (i_clk);
@@ -97,44 +100,108 @@ subtractor_pipe (
 
 generate 
   if (HIGH_PERF == "YES") begin: PERF_GEN
-    multiplier #(
-      .DAT_BITS ( DAT_BITS     ),
-      .CTL_BITS ( CTL_BITS_INT ),
-      .A_DSP_W  ( A_DSP_W      ),
-      .B_DSP_W  ( B_DSP_W      )
-    )
-    multiplier0 (
-      .i_clk ( i_clk ),
-      .i_rst ( i_rst ),
-      .i_mul ( mul_o_if[0] ),
-      .o_mul ( mul_i_if[0] )
-    );
+  
+    if (MULT_TYPE == "KARATSUBA") begin: MULT_GEN
+        karatsuba_ofman_mult # (
+          .BITS ( DAT_BITS ),
+          .CTL_BITS ( CTL_BITS_INT ),
+          .LEVEL ( 3 )
+        ) 
+        multiplier0 (
+          .i_clk ( i_clk ),
+          .i_rst ( i_rst ),
+          .i_dat_a ( mul_o_if[0].dat[0 +: DAT_BITS] ),
+          .i_dat_b ( mul_o_if[0].dat[DAT_BITS +: DAT_BITS] ),
+          .i_val ( mul_o_if[0].val ),
+          .i_ctl ( mul_o_if[0].ctl ),
+          .i_rdy ( mul_i_if[0].rdy ),
+          .o_rdy ( mul_o_if[0].rdy ),
+          .o_val ( mul_i_if[0].val ),
+          .o_ctl ( mul_i_if[0].ctl ),
+          .o_dat ( mul_i_if[0].dat )
+        );
     
-    multiplier #(
-      .DAT_BITS ( DAT_BITS     ),
-      .CTL_BITS ( CTL_BITS_INT ),
-      .A_DSP_W  ( A_DSP_W      ),
-      .B_DSP_W  ( B_DSP_W      )
-    )
-    multiplier1 (
-      .i_clk ( i_clk ),
-      .i_rst ( i_rst ),
-      .i_mul ( mul_o_if[1] ),
-      .o_mul ( mul_i_if[1] )
-    );
-    
-     multiplier #(
-      .DAT_BITS ( DAT_BITS     ),
-      .CTL_BITS ( CTL_BITS_INT ),
-      .A_DSP_W  ( A_DSP_W      ),
-      .B_DSP_W  ( B_DSP_W      )
-    )
-    multiplier2 (
-      .i_clk ( i_clk ),
-      .i_rst ( i_rst ),
-      .i_mul ( mul_o_if[2] ),
-      .o_mul ( mul_i_if[2] )
-    );   
+        karatsuba_ofman_mult # (
+          .BITS ( DAT_BITS ),
+          .CTL_BITS ( CTL_BITS_INT ),
+          .LEVEL ( 3 )
+        ) 
+        multiplier1 (
+          .i_clk ( i_clk ),
+          .i_rst ( i_rst ),
+          .i_dat_a ( mul_o_if[1].dat[0 +: DAT_BITS] ),
+          .i_dat_b ( mul_o_if[1].dat[DAT_BITS +: DAT_BITS] ),
+          .i_val ( mul_o_if[1].val ),
+          .i_ctl ( mul_o_if[1].ctl ),
+          .i_rdy ( mul_i_if[1].rdy ),
+          .o_rdy ( mul_o_if[1].rdy ),
+          .o_val ( mul_i_if[1].val ),
+          .o_ctl ( mul_i_if[1].ctl ),
+          .o_dat ( mul_i_if[1].dat )
+        );
+        
+        karatsuba_ofman_mult # (
+          .BITS ( DAT_BITS ),
+          .CTL_BITS ( CTL_BITS_INT ),
+          .LEVEL ( 3 )
+        ) 
+        multiplier2 (
+          .i_clk ( i_clk ),
+          .i_rst ( i_rst ),
+          .i_dat_a ( mul_o_if[2].dat[0 +: DAT_BITS] ),
+          .i_dat_b ( mul_o_if[2].dat[DAT_BITS +: DAT_BITS] ),
+          .i_val ( mul_o_if[2].val ),
+          .i_ctl ( mul_o_if[2].ctl ),
+          .i_rdy ( mul_i_if[2].rdy ),
+          .o_rdy ( mul_o_if[2].rdy ),
+          .o_val ( mul_i_if[2].val ),
+          .o_ctl ( mul_i_if[2].ctl ),
+          .o_dat ( mul_i_if[2].dat )
+        );
+    end else if (MULT_TYPE == "ACCUM") begin
+        multiplier #(
+          .DAT_BITS ( DAT_BITS     ),
+          .CTL_BITS ( CTL_BITS_INT ),
+          .A_DSP_W  ( A_DSP_W      ),
+          .B_DSP_W  ( B_DSP_W      ),
+          .NUM_ACCUM_PIPE ( NUM_ACCUM_PIPE )
+        )
+        multiplier0 (
+          .i_clk ( i_clk ),
+          .i_rst ( i_rst ),
+          .i_mul ( mul_o_if[0] ),
+          .o_mul ( mul_i_if[0] )
+        );
+        
+        multiplier #(
+          .DAT_BITS ( DAT_BITS     ),
+          .CTL_BITS ( CTL_BITS_INT ),
+          .A_DSP_W  ( A_DSP_W      ),
+          .B_DSP_W  ( B_DSP_W      ),
+          .NUM_ACCUM_PIPE ( NUM_ACCUM_PIPE )
+        )
+        multiplier1 (
+          .i_clk ( i_clk ),
+          .i_rst ( i_rst ),
+          .i_mul ( mul_o_if[1] ),
+          .o_mul ( mul_i_if[1] )
+        );
+        
+         multiplier #(
+          .DAT_BITS ( DAT_BITS     ),
+          .CTL_BITS ( CTL_BITS_INT ),
+          .A_DSP_W  ( A_DSP_W      ),
+          .B_DSP_W  ( B_DSP_W      ),
+          .NUM_ACCUM_PIPE ( NUM_ACCUM_PIPE )
+        )
+        multiplier2 (
+          .i_clk ( i_clk ),
+          .i_rst ( i_rst ),
+          .i_mul ( mul_o_if[2] ),
+          .o_mul ( mul_i_if[2] )
+        );   
+    end else
+      $fatal(1, "Unsupported MULT_TYPE");
   end else begin
     resource_share # (
       .NUM_IN       ( 3            ),
@@ -153,18 +220,45 @@ generate
       .o_axi ( mul_i_if[2:0] )
     );
     
-    multiplier #(
-      .DAT_BITS ( DAT_BITS     ),
-      .CTL_BITS ( CTL_BITS_INT ),
-      .A_DSP_W  ( A_DSP_W      ),
-      .B_DSP_W  ( B_DSP_W      )
-    )
-    multiplier (
-      .i_clk ( i_clk ),
-      .i_rst ( i_rst ),
-      .i_mul ( mul_o_if[3] ),
-      .o_mul ( mul_i_if[3] )
-    );
+    if (MULT_TYPE == "KARATSUBA") begin:MULT_GEN
+       karatsuba_ofman_mult # (
+          .BITS ( DAT_BITS ),
+          .CTL_BITS ( CTL_BITS_INT ),
+          .LEVEL ( 2 )
+        ) 
+        multiplier (
+          .i_clk ( i_clk ),
+          .i_rst ( i_rst ),
+          .i_dat_a ( mul_o_if[3].dat[0 +: DAT_BITS] ),
+          .i_dat_b ( mul_o_if[3].dat[DAT_BITS +: DAT_BITS] ),
+          .i_val ( mul_o_if[3].val ),
+          .i_ctl ( mul_o_if[3].ctl ),
+          .i_rdy ( mul_i_if[3].rdy ),
+          .o_rdy ( mul_o_if[3].rdy ),
+          .o_val ( mul_i_if[3].val ),
+          .o_ctl ( mul_i_if[3].ctl ),
+          .o_dat ( mul_i_if[3].dat )
+        );
+        always_comb begin
+          mul_i_if[3].sop = 1;
+          mul_i_if[3].eop = 1;
+        end
+    end else if (MULT_TYPE == "ACCUM") begin
+        multiplier #(
+          .DAT_BITS ( DAT_BITS     ),
+          .CTL_BITS ( CTL_BITS_INT ),
+          .A_DSP_W  ( A_DSP_W      ),
+          .B_DSP_W  ( B_DSP_W      ),
+          .NUM_ACCUM_PIPE ( NUM_ACCUM_PIPE )
+        )
+        multiplier (
+          .i_clk ( i_clk ),
+          .i_rst ( i_rst ),
+          .i_mul ( mul_o_if[3] ),
+          .o_mul ( mul_i_if[3] )
+        );
+    end else
+      $fatal(1, "Unsupported MULT_TYPE");
   end 
 endgenerate
 
