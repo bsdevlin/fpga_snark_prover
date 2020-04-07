@@ -26,7 +26,8 @@ module montgomery_mult #(
   parameter                REDUCE_BITS,
   parameter [DAT_BITS-1:0] FACTOR,
   parameter [DAT_BITS-1:0] MASK,
-  parameter [DAT_BITS-1:0] P
+  parameter [DAT_BITS-1:0] P,
+  parameter                HIGH_PERF // If "NO" we only have access to one multiplier at a time
 )(
   input                       i_clk,
   input                       i_rst,
@@ -52,16 +53,23 @@ logic rdy;
 if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS)) fifo_in_if(i_clk);
 if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS)) fifo_out_if(i_clk);
 logic fifo_out_full;
+logic input_ok; // If not in HIGH_PERF mode we need to control flow
+
+
 
 // Stage 1 multiplication
-always_comb i_mont_mul_if.rdy = (~o_mul_if_0.val || (o_mul_if_0.val && o_mul_if_0.rdy));
+always_comb i_mont_mul_if.rdy = (HIGH_PERF=="YES" || input_ok) && (~o_mul_if_0.val || (o_mul_if_0.val && o_mul_if_0.rdy));
 
 always_ff @ (posedge i_clk) begin
   if (i_rst) begin
     o_mul_if_0.reset_source();
+    input_ok <= 1;
   end else begin
     o_mul_if_0.sop <= 1;
     o_mul_if_0.eop <= 1;
+    
+    if (i_mont_mul_if.rdy && i_mont_mul_if.val) input_ok <= 0;
+    if (i_mul_if_2.val && i_mul_if_2.rdy) input_ok <= 1;
 
     if (o_mul_if_0.rdy) o_mul_if_0.val <= 0;
 

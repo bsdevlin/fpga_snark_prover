@@ -53,7 +53,8 @@ montgomery_mult #(
   .REDUCE_BITS ( REDUCE_BITS  ),
   .FACTOR      ( FACTOR       ),
   .MASK        ( MASK         ),
-  .P           ( P            )
+  .P           ( P            ),
+  .HIGH_PERF   ( HIGH_PERF    )
 )
 montgomery_mult (
   .i_clk ( i_clk ),
@@ -208,8 +209,8 @@ generate
       .DAT_BITS     ( 2*DAT_BITS   ),
       .CTL_BITS     ( CTL_BITS_INT ),
       .OVR_WRT_BIT  ( CTL_BITS     ),
-      .PIPELINE_IN  ( 1            ),
-      .PIPELINE_OUT ( 1            )
+      .PIPELINE_IN  ( 0            ),
+      .PIPELINE_OUT ( 0            )
     )
     resource_share_mul (
       .i_clk ( i_clk ),
