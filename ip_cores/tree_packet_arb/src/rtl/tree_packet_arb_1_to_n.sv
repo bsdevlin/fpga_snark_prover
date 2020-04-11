@@ -25,8 +25,6 @@ module tree_packet_arb_1_to_n # (
   parameter CTL_BITS,
   parameter NUM_OUT,
   parameter OVR_WRT_BIT = CTL_BITS - $clog2(NUM_OUT), // What bits in ctl are overwritten with channel id
-  parameter PIPELINE = 1,
-  parameter PRIORITY_IN = 0,
   parameter N = 2, //  log n-tree
   parameter MAX = NUM_OUT // Don't change this
 ) (
@@ -67,8 +65,6 @@ generate
         .CTL_BITS     ( CTL_BITS    ),
         .NUM_OUT      ( NUM_OUT_GRP ),
         .OVR_WRT_BIT  ( OVR_WRT_BIT ),
-        .PIPELINE     ( PIPELINE    ),
-        .PRIORITY_IN  ( PRIORITY_IN ),
         .N            ( N           ),
         .MAX          ( MAX         )
       ) 
@@ -89,7 +85,7 @@ generate
         pipeline_if  #(
           .DAT_BITS   ( DAT_BITS ),
           .CTL_BITS   ( CTL_BITS ),
-          .NUM_STAGES ( PIPELINE )
+          .NUM_STAGES ( 1        )
         )
         pipeline_if_in (
           .i_rst ( i_rst  ),

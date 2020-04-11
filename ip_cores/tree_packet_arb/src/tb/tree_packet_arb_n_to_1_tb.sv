@@ -17,44 +17,38 @@
 `timescale 1ps/1ps
 `define SIMULATION
 
-module tree_packet_arb_1_to_n_tb ();
+module tree_packet_arb_n_to_1_tb ();
 import common_pkg::*;
 
 localparam CLK_PERIOD = 100;
 
 logic clk, rst;
-parameter NUM_OUT = 8;
-parameter N = 4;
+parameter NUM_IN = 8;
+parameter N = 2;
 
-logic [$clog2(NUM_OUT)-1:0] index;
-logic [NUM_OUT-1:0] val, sop, eop;
-logic [NUM_OUT-1:0][63:0] dat;
-logic [NUM_OUT-1:0][$clog2(NUM_OUT)-1:0] ctl;
+logic [$clog2(NUM_IN)-1:0] index;
+logic [NUM_IN-1:0] rdy;
 
 // This is the max size we can expect on the output
-if_axi_stream #(.DAT_BYTS(8), .CTL_BITS($clog2(NUM_OUT))) in_if(clk);
-if_axi_stream #(.DAT_BYTS(8), .CTL_BITS($clog2(NUM_OUT))) out_if [NUM_OUT-1:0] (clk);
-if_axi_stream #(.DAT_BYTS(8), .CTL_BITS($clog2(NUM_OUT))) out_if_int (clk);
+if_axi_stream #(.DAT_BYTS(8), .CTL_BITS($clog2(NUM_IN))) out_if(clk);
+if_axi_stream #(.DAT_BYTS(8), .CTL_BITS($clog2(NUM_IN))) in_if [NUM_IN-1:0] (clk);
+if_axi_stream #(.DAT_BYTS(8), .CTL_BITS($clog2(NUM_IN))) in_if_int (clk);
 
 genvar gi;
 generate
   always_comb begin
-    out_if_int.val = val[index];
-    out_if_int.sop = sop[index];
-    out_if_int.eop = eop[index];
-    out_if_int.ctl = ctl[index];
-    out_if_int.dat = dat[index];
-    out_if_int.err = 0;
-    out_if_int.mod = 0;
+    in_if_int.rdy = rdy[index];
   end
-  for (gi = 0; gi < NUM_OUT; gi++) begin : GEN_OUT
+  for (gi = 0; gi < NUM_IN; gi++) begin : GEN_OUT
     always_comb begin
-      val[gi] = out_if[gi].val;
-      sop[gi] = out_if[gi].sop;
-      eop[gi] = out_if[gi].eop;
-      ctl[gi] = out_if[gi].ctl;
-      dat[gi] = out_if[gi].dat;
-      out_if[gi].rdy = (index == gi) && out_if_int.rdy;
+      in_if[gi].val = in_if_int.val && (index == gi);
+      in_if[gi].sop = in_if_int.sop;
+      in_if[gi].eop = in_if_int.eop;
+      in_if[gi].ctl = in_if_int.ctl;
+      in_if[gi].dat = in_if_int.dat;
+      in_if[gi].mod = in_if_int.mod;
+      in_if[gi].err = in_if_int.err;  
+      rdy[gi] = in_if[gi].rdy;
     end
   end
 endgenerate
@@ -69,18 +63,19 @@ initial begin
   forever #CLK_PERIOD clk = ~clk;
 end
 
-tree_packet_arb_1_to_n # (
+tree_packet_arb_n_to_1 # (
   .DAT_BYTS ( 8       ),
-  .CTL_BITS ( $clog2(NUM_OUT) ),
-  .NUM_OUT  ( NUM_OUT ),
+  .CTL_BITS ( $clog2(NUM_IN) ),
+  .NUM_IN   ( NUM_IN ),
+  .PIPELINE ( 1       ),
   .N        ( N       ),
   .OVR_WRT_BIT ( 0 )
 )
-tree_packet_arb_1_to_n (
+tree_packet_arb_n_to_1 (
   .i_clk ( clk ), 
   .i_rst ( rst ),
-  .i_axi ( in_if ), 
-  .o_n_axi ( out_if )
+  .i_n_axi ( in_if ), 
+  .o_axi ( out_if )
 );
 
 task test_loop();
@@ -97,13 +92,13 @@ begin
   max = 1000;
 
   while (i < max) begin
-    in = random_vector(8);
-    index = i % NUM_OUT;
+    in = random_vector(8*4);
+    index = i % NUM_IN;
     fork
-      in_if.put_stream(in, 8*4, index);
+      in_if_int.put_stream(in, 8*4, 0);
       begin 
-        out_if_int.get_stream(get_dat, get_len, 0);
-        ctl = out_if_int.ctl;
+        out_if.get_stream(get_dat, get_len, 0);
+        ctl = out_if.ctl;
       end
     join
 
@@ -123,8 +118,8 @@ endtask;
 
 initial begin
   index = 0;
-  out_if_int.rdy = 0;
-  in_if.reset_source();
+  out_if.rdy = 0;
+  in_if_int.reset_source();
   #(40*CLK_PERIOD);
 
   test_loop();
