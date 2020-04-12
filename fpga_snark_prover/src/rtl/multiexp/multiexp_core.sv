@@ -3,7 +3,7 @@
   and points, and does the multiplication and addition
   to get multiexp result (single point output).
 
-  Each core has it's own multiplier, adder, and subtractor units.
+  Each core has it's own adder, and subtractor units.
 
   This does not do any pre-calculation.
 
@@ -33,6 +33,7 @@ module multiexp_core #(
   parameter type FE_TYPE,
   parameter      KEY_BITS,
   parameter      CTL_BITS,
+  parameter      P,
   // If using montgomery form need to override these
   parameter FE_TYPE CONST_3 = 3,
   parameter FE_TYPE CONST_4 = 4,
@@ -49,20 +50,16 @@ module multiexp_core #(
 
   // Interfaces to arithmetic units
   if_axi_stream.source o_mul_if,
-  if_axi_stream.sink   i_mul_if,
-  if_axi_stream.source o_add_if,
-  if_axi_stream.sink   i_add_if,
-  if_axi_stream.source o_sub_if,
-  if_axi_stream.sink   i_sub_if
+  if_axi_stream.sink   i_mul_if
 );
 
 localparam DAT_BITS = $bits(FE_TYPE);
 
 
-if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   add_if_i [1:0] (i_clk);
-if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) add_if_o [1:0] (i_clk);
-if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   sub_if_i [1:0] (i_clk);
-if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) sub_if_o [1:0] (i_clk);
+if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   add_if_i [2:0] (i_clk);
+if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) add_if_o [2:0] (i_clk);
+if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   sub_if_i [2:0] (i_clk);
+if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) sub_if_o [2:0] (i_clk);
 if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   mul_if_i [1:0] (i_clk);
 if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) mul_if_o [1:0] (i_clk);
 
@@ -104,7 +101,8 @@ always_ff @ (posedge i_clk) begin
         in_cnt <= 0;
         i_pnt_scl_if.rdy <= 0;  
         if (~o_pnt_if.val) begin
-          i_pnt_scl_if.rdy <= i_pnt_scl_if.val;  
+          i_pnt_scl_if.rdy <= i_pnt_scl_if.val; 
+          o_pnt_if.ctl <= i_pnt_scl_if.ctl;
           if (i_pnt_scl_if.val) begin
             if (i_pnt_scl_if.ctl[0] == 0) begin
               o_pnt_if.dat <= 0;
@@ -246,8 +244,8 @@ resource_share_add (
   .i_clk ( i_clk ),
   .i_rst ( i_rst ),
   .i_axi ( add_if_o[1:0] ),
-  .o_res ( o_add_if      ),
-  .i_res ( i_add_if      ),
+  .o_res ( add_if_o[2]   ),
+  .i_res ( add_if_i[2]   ),
   .o_axi ( add_if_i[1:0] )
 );
 
@@ -263,11 +261,12 @@ resource_share_sub (
   .i_clk ( i_clk ),
   .i_rst ( i_rst ),
   .i_axi ( sub_if_o[1:0] ),
-  .o_res ( o_sub_if      ),
-  .i_res ( i_sub_if      ),
+  .o_res ( sub_if_o[2]   ),
+  .i_res ( sub_if_i[2]   ),
   .o_axi ( sub_if_i[1:0] )
 );
 
+// Multiplier is shared between cores
 resource_share # (
   .NUM_IN       ( 2          ),
   .DAT_BITS     ( 2*DAT_BITS ),
@@ -283,6 +282,33 @@ resource_share_mul (
   .o_res ( o_mul_if      ),
   .i_res ( i_mul_if      ),
   .o_axi ( mul_if_i[1:0] )
+);
+
+// Adder and subtractor are local to core
+adder_pipe # (
+  .P       ( P        ) ,
+  .BITS    ( DAT_BITS ),
+  .CTL_BITS( CTL_BITS ),
+  .LEVEL   ( 2        )
+)
+adder_pipe (
+  .i_clk ( i_clk ),
+  .i_rst ( i_rst ),
+  .i_add ( add_if_o[2] ),
+  .o_add ( add_if_i[2] )
+);
+
+subtractor_pipe # (
+  .P       ( P        ),
+  .BITS    ( DAT_BITS ),
+  .CTL_BITS( CTL_BITS ),
+  .LEVEL   ( 2        )
+)
+subtractor_pipe (
+  .i_clk ( i_clk ),
+  .i_rst ( i_rst ),
+  .i_sub ( sub_if_o[2] ),
+  .o_sub ( sub_if_i[2] )
 );
 
 endmodule

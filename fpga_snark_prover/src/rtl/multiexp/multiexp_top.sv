@@ -23,8 +23,7 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-module multiexp_top
-#(
+module multiexp_top #(
   parameter type FP_TYPE,
   parameter type FE_TYPE,
   parameter      P,
@@ -48,30 +47,44 @@ module multiexp_top
 );
 
 localparam NUM_CORE_IN_GRP =  (NUM_CORES+NUM_ARITH-1)/NUM_ARITH;
+localparam LOG2_CORE_IN_GRP = (NUM_CORE_IN_GRP == 1 ? 1 : $clog2(NUM_CORE_IN_GRP));
 
 localparam CTL_BITS = 8;
-localparam CTL_BITS_INT = CTL_BITS + $clog2(NUM_CORE_IN_GRP);
+localparam CTL_BITS_INT = CTL_BITS + LOG2_CORE_IN_GRP;
 localparam DAT_BITS = $bits(FE_TYPE);
+localparam S_BITS = $bits(FE_TYPE);
+localparam P_BITS = $bits(FP_TYPE);
+localparam P_S_BITS = S_BITS + P_BITS;
+localparam LOG2_CORES = (NUM_CORES == 1 ? 1 : $clog2(NUM_CORES));
 
 logic [63:0] num_in;
 
-logic [(NUM_CORES == 1 ? 1 : $clog2(NUM_CORES))-1:0] core_sel;    // Used when muxing traffic into the cores
-logic [$clog2(NUM_CORES):0] final_stage; // When doing the final add
+logic [LOG2_CORES-1:0] core_sel;    // Used when muxing traffic into the cores
+logic [LOG2_CORES:0] final_stage; // When doing the final add
+logic [NUM_CORES-1:0] final_stage_oh; // One hot bitmask
 logic [$clog2(DAT_BITS)-1:0] key_cnt;
 logic [63:0] in_cnt;
-logic [NUM_CORES-1:0] core_rdy;
+logic discard;
 
-
-if_axi_stream #(.DAT_BITS($bits(FP_TYPE)+DAT_BITS), .CTL_BITS(CTL_BITS)) pnt_scl_if_add (i_clk);
-logic [NUM_CORES-1:0] pnt_val_o, pnt_rdy_o;
-logic [NUM_CORES-1:0] [$bits(FP_TYPE)-1:0] pnt_dat_o;
+if_axi_stream #(.DAT_BITS(P_S_BITS), .CTL_BITS(CTL_BITS_INT)) pnt_scl_if_add (i_clk);
+if_axi_stream #(.DAT_BITS(P_S_BITS), .CTL_BITS(CTL_BITS_INT)) pnt_scl_in_if (i_clk);
+if_axi_stream #(.DAT_BITS(P_S_BITS), .CTL_BITS(CTL_BITS_INT)) pnt_scl_core_if [NUM_CORES-1:0](i_clk);
+if_axi_stream #(.DAT_BITS(P_BITS), .CTL_BITS(CTL_BITS_INT))   core_pnt_if [NUM_CORES-1:0](i_clk);
+if_axi_stream #(.DAT_BITS(P_BITS), .CTL_BITS(CTL_BITS_INT))   res_pnt_if (i_clk);  
 
 // Logic for streaming data into cores and adding final output
 enum {IDLE, MULTI_EXP, FINAL_ADD} state;
 
 always_comb begin
-  i_pnt_scl_if.rdy = core_rdy[core_sel] && (state == MULTI_EXP) && o_pnt_if.val == 0;
-  pnt_scl_if_add.rdy = core_rdy[core_sel] && (state == FINAL_ADD);
+  res_pnt_if.rdy = (state == FINAL_ADD) && (~o_pnt_if.val || (o_pnt_if.val && o_pnt_if.rdy));
+  pnt_scl_if_add.rdy = pnt_scl_in_if.rdy;
+  i_pnt_scl_if.rdy = pnt_scl_in_if.rdy && (state == MULTI_EXP);
+  if (state == FINAL_ADD) begin
+    pnt_scl_in_if.copy_if_comb(pnt_scl_if_add.dat, pnt_scl_if_add.val, pnt_scl_if_add.sop, pnt_scl_if_add.eop, pnt_scl_if_add.err, pnt_scl_if_add.mod, pnt_scl_if_add.ctl);
+  end else begin
+    pnt_scl_in_if.copy_if_comb(i_pnt_scl_if.dat, i_pnt_scl_if.val, i_pnt_scl_if.sop, i_pnt_scl_if.eop, i_pnt_scl_if.err, i_pnt_scl_if.mod, i_pnt_scl_if.ctl);
+    pnt_scl_in_if.ctl[CTL_BITS +: LOG2_CORES] = core_sel; 
+  end     
 end
 
 always_ff @ (posedge i_clk) begin
@@ -83,16 +96,12 @@ always_ff @ (posedge i_clk) begin
     key_cnt <= 0;
     in_cnt <= 0;
     final_stage <= 0;
-    for (int i = 0; i < NUM_CORES; i++)
-      pnt_rdy_o[i] <= 0;
     pnt_scl_if_add.reset_source();
+    final_stage_oh <= 0;
+    discard <= 0;
   end else begin
-  
-    if (core_rdy[core_sel]) pnt_scl_if_add.val <= 0;
     if (o_pnt_if.rdy) o_pnt_if.val <= 0;
-    
-    for (int i = 0; i < NUM_CORES; i++)
-      pnt_rdy_o[i] <= 0;
+    if (pnt_scl_if_add.rdy) pnt_scl_if_add.val <= 0;
       
     case (state)
       IDLE: begin
@@ -101,7 +110,7 @@ always_ff @ (posedge i_clk) begin
         key_cnt <= 0;
         in_cnt <= 0;
         pnt_scl_if_add.val <= 0;
-        final_stage <= 1;
+        final_stage <= NUM_CORES;
         if (i_pnt_scl_if.val && o_pnt_if.val == 0) begin
           state <= MULTI_EXP;
         end
@@ -115,115 +124,111 @@ always_ff @ (posedge i_clk) begin
             if (key_cnt == DAT_BITS-1) begin
               core_sel <= 0;
               state <= FINAL_ADD;
+              final_stage_oh <= 0;
             end
           end
         end
       end
+      // Now we wait for points to be sent back
       FINAL_ADD: begin
-        if (core_rdy[core_sel] && pnt_scl_if_add.val) begin
-          core_sel <= core_sel + 2*final_stage;
-          if (core_sel + 2*final_stage == NUM_CORES) begin
-            core_sel <= 0;
-            final_stage <= 2*final_stage;
+        discard <= 0;
+        if (res_pnt_if.val && res_pnt_if.rdy) begin
+          final_stage_oh[res_pnt_if.ctl[CTL_BITS +: LOG2_CORES]] <= 1;
+          // First check if this is the final point
+          if (final_stage == 1) begin
+            final_stage_oh <= 0;
+            o_pnt_if.copy_if(res_pnt_if.dat, res_pnt_if.val, res_pnt_if.sop, res_pnt_if.eop, res_pnt_if.err, res_pnt_if.mod, res_pnt_if.ctl);
+            state <= IDLE;
+          end else if (res_pnt_if.ctl[CTL_BITS_INT-1:CTL_BITS] < (final_stage>>1)) begin
+            // We can discard this point, do nothing
+            discard <= 1;
+          end else begin
+            // We need to send this one back to (ctl - final_stage/2) to be added
+            pnt_scl_if_add.copy_if({res_pnt_if.dat, {S_BITS{1'd0}}}, res_pnt_if.val, res_pnt_if.sop, res_pnt_if.eop, res_pnt_if.err, res_pnt_if.mod, res_pnt_if.ctl);
+            pnt_scl_if_add.ctl[CTL_BITS +: LOG2_CORES] <= res_pnt_if.ctl[CTL_BITS +: LOG2_CORES] - (final_stage>>1);
+            pnt_scl_if_add.ctl[0] <= 1;                
+            if (check_mask(final_stage_oh, res_pnt_if.ctl[CTL_BITS +: LOG2_CORES], final_stage)) begin
+              final_stage_oh <= 0;
+              final_stage <= final_stage >> 1;
+            end
           end
-        end
-        if (pnt_val_o[core_sel+final_stage] && pnt_val_o[core_sel]) begin
-          pnt_scl_if_add.dat <= {pnt_dat_o[core_sel+final_stage], {DAT_BITS{1'd0}}};
-          pnt_scl_if_add.val <= 1;
-          pnt_rdy_o[core_sel] <= 1;
-          pnt_rdy_o[core_sel+final_stage] <= 1;
-        end
-        if (pnt_val_o[0] && (final_stage == NUM_CORES)) begin
-          o_pnt_if.val <= 1;
-          o_pnt_if.dat <= pnt_dat_o[0];
-          o_pnt_if.sop <= 1;
-          o_pnt_if.eop <= 1;
-          pnt_rdy_o[0] <= 1;
-          state <= IDLE;
         end
       end
     endcase
   end
 end
 
+// Function to get the results mask
+function logic check_mask (input logic [NUM_CORES-1:0] in_mask, input int set, input int limit);
+  check_mask = 1;
+  for (int i = limit/2; i < limit; i++)
+    if (i!= set && in_mask[i] == 0) 
+      check_mask = 0;
+endfunction
+
 // Instantiate the cores and arithmetic blocks
+tree_packet_arb_1_to_n # (
+  .DAT_BITS    ( P_S_BITS     ),
+  .CTL_BITS    ( CTL_BITS_INT ),
+  .NUM_OUT     ( NUM_CORES    ),
+  .N           ( 2            ),
+  .OVR_WRT_BIT ( CTL_BITS     )
+)
+tree_packet_arb_1_to_n_pnt_scl_in (
+  .i_clk   ( i_clk ), 
+  .i_rst   ( i_rst ),
+  .i_axi   ( pnt_scl_in_if ), 
+  .o_n_axi ( pnt_scl_core_if )
+);
+
+tree_packet_arb_n_to_1 # (
+  .DAT_BITS    ( P_BITS       ),
+  .CTL_BITS    ( CTL_BITS_INT ),
+  .NUM_IN      ( NUM_CORES    ),
+  .N           ( 2            ),
+  .OVR_WRT_BIT ( CTL_BITS     )
+)
+tree_packet_arb_n_to_1_pnt_res (
+  .i_clk   ( i_clk ), 
+  .i_rst   ( i_rst ),
+  .i_n_axi ( core_pnt_if ), 
+  .o_axi   ( res_pnt_if )
+);
 
 genvar gx, gy;
 generate
   for (gx = 0; gx < NUM_ARITH; gx++) begin: GROUP_GEN
   
-    if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS_INT)) mul_if_o [NUM_CORE_IN_GRP:0] (i_clk);
-    if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS_INT))   mul_if_i [NUM_CORE_IN_GRP:0] (i_clk);
-    if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS_INT)) add_if_o [NUM_CORE_IN_GRP:0] (i_clk);
-    if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS_INT))   add_if_i [NUM_CORE_IN_GRP:0] (i_clk);
-    if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS_INT)) sub_if_o [NUM_CORE_IN_GRP:0] (i_clk);
-    if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS_INT))   sub_if_i [NUM_CORE_IN_GRP:0] (i_clk);
+    if_axi_stream #(.DAT_BYTS(DAT_BITS*2/8), .DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS_INT)) mul_if_o [NUM_CORE_IN_GRP:0] (i_clk);
+    if_axi_stream #(.DAT_BYTS(DAT_BITS/8), .DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS_INT))   mul_if_i [NUM_CORE_IN_GRP:0] (i_clk);
   
-    
     for (gy = 0; gy < NUM_CORE_IN_GRP; gy++) begin: CORE_GEN
-    
-      localparam C = gx*NUM_CORE_IN_GRP + gy;
-      
+
       if (gx*NUM_CORE_IN_GRP + gy >= NUM_CORES) begin
         always_comb begin
           mul_if_o[gy].val = 0;
-          mul_if_i[gy].rdy = 0;
-          add_if_o[gy].val = 0;
-          add_if_i[gy].rdy = 0;
-          sub_if_o[gy].val = 0;
-          sub_if_i[gy].rdy = 0;          
+          mul_if_i[gy].rdy = 0;       
         end
         
       end else begin
-        if_axi_stream #(.DAT_BITS($bits(FP_TYPE)+DAT_BITS), .CTL_BITS(CTL_BITS)) pnt_scl_if_i (i_clk);
-        if_axi_stream #(.DAT_BITS($bits(FP_TYPE)), .CTL_BITS(CTL_BITS)) pnt_if_o (i_clk);
-
-        // Control logic
-        always_comb begin
-          core_rdy[C] = pnt_scl_if_i.rdy;
-          pnt_scl_if_i.dat = 0;
-          pnt_scl_if_i.sop = 1;
-          pnt_scl_if_i.eop = 1;
-          pnt_scl_if_i.ctl = 0;
-          pnt_scl_if_i.mod = 0;
-          pnt_scl_if_i.err = 0;
-          pnt_scl_if_i.val = 0;
-        
-          if (state == MULTI_EXP) begin
-            pnt_scl_if_i.val = i_pnt_scl_if.val && (core_sel == C);
-            pnt_scl_if_i.dat = i_pnt_scl_if.dat;
-          end else if (state == FINAL_ADD) begin
-            pnt_scl_if_i.val = pnt_scl_if_add.val && (core_sel == C);
-            pnt_scl_if_i.dat = pnt_scl_if_add.dat;
-            pnt_scl_if_i.ctl[0] = 1;
-          end
-        
-          pnt_if_o.rdy = pnt_rdy_o[C];
-          pnt_val_o[C] = pnt_if_o.val;
-          pnt_dat_o[C] = pnt_if_o.dat;
-        end
-        
         multiexp_core #(
-          .FP_TYPE  ( FP_TYPE  ),
-          .FE_TYPE  ( FE_TYPE  ),
-          .KEY_BITS ( DAT_BITS ),
-          .CTL_BITS ( CTL_BITS ),
-          .CONST_3  ( CONST_3  ),
-          .CONST_4  ( CONST_4  ),
-          .CONST_8  ( CONST_8  )
+          .FP_TYPE  ( FP_TYPE      ),
+          .FE_TYPE  ( FE_TYPE      ),
+          .KEY_BITS ( DAT_BITS     ),
+          .CTL_BITS ( CTL_BITS_INT ),
+          .CONST_3  ( CONST_3      ),
+          .CONST_4  ( CONST_4      ),
+          .CONST_8  ( CONST_8      ),
+          .P        ( P            )
         )
         multiexp_core (
           .i_clk ( i_clk ),
           .i_rst ( i_rst ),
-          .i_pnt_scl_if ( pnt_scl_if_i ),
-          .i_num_in ( num_in / NUM_CORES ), // NUM_CORES should be a power of 2
-          .o_pnt_if ( pnt_if_o    ),
-          .o_mul_if( mul_if_o[gy] ),
-          .i_mul_if( mul_if_i[gy] ),
-          .o_add_if( add_if_o[gy] ),
-          .i_add_if( add_if_i[gy] ),
-          .o_sub_if( sub_if_o[gy] ),
-          .i_sub_if( sub_if_i[gy] )
+          .i_pnt_scl_if ( pnt_scl_core_if[gy] ),
+          .i_num_in ( num_in / NUM_CORES      ), // NUM_CORES should be a power of 2
+          .o_pnt_if ( core_pnt_if[gy]         ),
+          .o_mul_if( mul_if_o[gy]             ),
+          .i_mul_if( mul_if_i[gy]             )
         );
       end
     end
@@ -247,99 +252,21 @@ generate
       .o_mont_mul_if ( mul_if_i[NUM_CORE_IN_GRP] )
     );
 
-    adder_pipe # (
-      .P       ( P            ) ,
-      .BITS    ( DAT_BITS     ),
-      .CTL_BITS( CTL_BITS_INT ),
-      .LEVEL   ( 2            )
+    tree_resource_share # (
+      .NUM_IN       ( NUM_CORE_IN_GRP ),
+      .DAT_BITS     ( 2*DAT_BITS   ),
+      .CTL_BITS     ( CTL_BITS_INT ),
+      .OVR_WRT_BIT  ( CTL_BITS     ),
+      .N            ( 2            )
     )
-    adder_pipe (
+    tree_resource_share_mul (
       .i_clk ( i_clk ),
       .i_rst ( i_rst ),
-      .i_add ( add_if_o[NUM_CORE_IN_GRP] ),
-      .o_add ( add_if_i[NUM_CORE_IN_GRP] )
+      .i_axi ( mul_if_o[NUM_CORE_IN_GRP-1:0] ),
+      .o_res ( mul_if_o[NUM_CORE_IN_GRP]     ),
+      .i_res ( mul_if_i[NUM_CORE_IN_GRP]     ),
+      .o_axi ( mul_if_i[NUM_CORE_IN_GRP-1:0] )
     );
-
-    subtractor_pipe # (
-      .P       ( P            ),
-      .BITS    ( DAT_BITS     ),
-      .CTL_BITS( CTL_BITS_INT ),
-      .LEVEL   ( 2            )
-    )
-    subtractor_pipe (
-      .i_clk ( i_clk ),
-      .i_rst ( i_rst ),
-      .i_sub ( sub_if_o[NUM_CORE_IN_GRP] ),
-      .o_sub ( sub_if_i[NUM_CORE_IN_GRP] )
-    );
-    if (NUM_CORE_IN_GRP > 1) begin
-      resource_share # (
-        .NUM_IN       ( NUM_CORE_IN_GRP ),
-        .DAT_BITS     ( 2*DAT_BITS   ),
-        .CTL_BITS     ( CTL_BITS_INT ),
-        .OVR_WRT_BIT  ( CTL_BITS     ),
-        .PIPELINE_IN  ( 1 ),
-        .PIPELINE_OUT ( 1 )
-      )
-      resource_share_sub (
-        .i_clk ( i_clk ),
-        .i_rst ( i_rst ),
-        .i_axi ( sub_if_o[NUM_CORE_IN_GRP-1:0] ),
-        .o_res ( sub_if_o[NUM_CORE_IN_GRP]     ),
-        .i_res ( sub_if_i[NUM_CORE_IN_GRP]     ),
-        .o_axi ( sub_if_i[NUM_CORE_IN_GRP-1:0] )
-      );
-  
-      resource_share # (
-        .NUM_IN       ( NUM_CORE_IN_GRP ),
-        .DAT_BITS     ( 2*DAT_BITS   ),
-        .CTL_BITS     ( CTL_BITS_INT ),
-        .OVR_WRT_BIT  ( CTL_BITS     ),
-        .PIPELINE_IN  ( 1 ),
-        .PIPELINE_OUT ( 1 )
-      )
-      resource_share_add (
-        .i_clk ( i_clk ),
-        .i_rst ( i_rst ),
-        .i_axi ( add_if_o[NUM_CORE_IN_GRP-1:0] ),
-        .o_res ( add_if_o[NUM_CORE_IN_GRP]     ),
-        .i_res ( add_if_i[NUM_CORE_IN_GRP]     ),
-        .o_axi ( add_if_i[NUM_CORE_IN_GRP-1:0] )
-      );
-  
-      resource_share # (
-        .NUM_IN       ( NUM_CORE_IN_GRP ),
-        .DAT_BITS     ( 2*DAT_BITS   ),
-        .CTL_BITS     ( CTL_BITS_INT ),
-        .OVR_WRT_BIT  ( CTL_BITS     ),
-        .PIPELINE_IN  ( 1 ),
-        .PIPELINE_OUT ( 1 )
-      )
-      resource_share_mul (
-        .i_clk ( i_clk ),
-        .i_rst ( i_rst ),
-        .i_axi ( mul_if_o[NUM_CORE_IN_GRP-1:0] ),
-        .o_res ( mul_if_o[NUM_CORE_IN_GRP]     ),
-        .i_res ( mul_if_i[NUM_CORE_IN_GRP]     ),
-        .o_axi ( mul_if_i[NUM_CORE_IN_GRP-1:0] )
-      );
-    end else begin
-      always_comb begin
-        mul_if_o[1].copy_if_comb(mul_if_o[0].dat, mul_if_o[0].val, mul_if_o[0].sop, mul_if_o[0].eop, mul_if_o[0].err, mul_if_o[0].mod, mul_if_o[0].ctl);
-        mul_if_o[0].rdy = mul_if_o[1].rdy;
-        mul_if_i[0].copy_if_comb(mul_if_i[1].dat, mul_if_i[1].val, mul_if_i[1].sop, mul_if_i[1].eop, mul_if_i[1].err, mul_if_i[1].mod, mul_if_i[1].ctl);
-        mul_if_i[1].rdy = mul_if_o[0].rdy;
-        add_if_o[1].copy_if_comb(add_if_o[0].dat, add_if_o[0].val, add_if_o[0].sop, add_if_o[0].eop, add_if_o[0].err, add_if_o[0].mod, add_if_o[0].ctl);
-        add_if_o[0].rdy = add_if_o[1].rdy;
-        add_if_i[0].copy_if_comb(add_if_i[1].dat, add_if_i[1].val, add_if_i[1].sop, add_if_i[1].eop, add_if_i[1].err, add_if_i[1].mod, add_if_i[1].ctl);
-        add_if_i[1].rdy = add_if_o[0].rdy;    
-        sub_if_o[1].copy_if_comb(sub_if_o[0].dat, sub_if_o[0].val, sub_if_o[0].sop, sub_if_o[0].eop, sub_if_o[0].err, sub_if_o[0].mod, sub_if_o[0].ctl);
-        sub_if_o[0].rdy = sub_if_o[1].rdy;
-        sub_if_i[0].copy_if_comb(sub_if_i[1].dat, sub_if_i[1].val, sub_if_i[1].sop, sub_if_i[1].eop, sub_if_i[1].err, sub_if_i[1].mod, sub_if_i[1].ctl);
-        sub_if_i[1].rdy = sub_if_o[0].rdy;   
-      end
-    end
-
   end
 endgenerate
 

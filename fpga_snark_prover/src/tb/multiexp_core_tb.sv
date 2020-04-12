@@ -36,10 +36,6 @@ always_comb res_o = o_pnt_if.dat;
 
 if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS)) mul_o_if (clk);
 if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS)) mul_i_if (clk);
-if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS)) add_o_if (clk);
-if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS)) add_i_if (clk);
-if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS)) sub_o_if (clk);
-if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS)) sub_i_if   (clk);
 
 localparam DAT_IN0 = $bits(fe_t) + $bits(jb_point_t);
 localparam DAT_IN1 = $bits(jb_point_t);
@@ -71,7 +67,8 @@ multiexp_core #(
   .CTL_BITS ( CTL_BITS   ),
   .CONST_3  ( CONST_3    ),
   .CONST_4  ( CONST_4    ),
-  .CONST_8  ( CONST_8    )
+  .CONST_8  ( CONST_8    ),
+  .P        ( P          )
 )
 multiexp_core (
   .i_clk ( clk ),
@@ -80,11 +77,7 @@ multiexp_core (
   .i_num_in ( num_in ),
   .o_pnt_if ( o_pnt_if ),
   .o_mul_if( mul_o_if ),
-  .i_mul_if( mul_i_if ),
-  .o_add_if( add_o_if ),
-  .i_add_if( add_i_if ),
-  .o_sub_if( sub_o_if ),
-  .i_sub_if( sub_i_if )
+  .i_mul_if( mul_i_if )
 );
 
 montgomery_mult_wrapper #(
@@ -104,31 +97,6 @@ montgomery_mult_wrapper (
   .o_mont_mul_if ( mul_i_if )
 );
 
-adder_pipe # (
-  .P       ( P        ) ,
-  .BITS    ( DAT_BITS ),
-  .CTL_BITS( CTL_BITS ),
-  .LEVEL   ( 2        )
-)
-adder_pipe (
-  .i_clk ( clk ),
-  .i_rst ( rst ),
-  .i_add ( add_o_if ),
-  .o_add ( add_i_if )
-);
-
-subtractor_pipe # (
-  .P       ( P        ),
-  .BITS    ( DAT_BITS ),
-  .CTL_BITS( CTL_BITS ),
-  .LEVEL   ( 2        )
-)
-subtractor_pipe (
-  .i_clk ( clk ),
-  .i_rst ( rst ),
-  .i_sub ( sub_o_if ),
-  .o_sub ( sub_i_if )
-);
 
 task test0();
 begin

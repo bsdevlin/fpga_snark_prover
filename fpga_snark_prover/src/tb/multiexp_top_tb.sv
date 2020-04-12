@@ -24,7 +24,7 @@ import common_pkg::*;
 
 localparam CLK_PERIOD = 100;
 
-localparam NUM_IN = 4;
+localparam NUM_IN = 8;
 localparam NUM_CORES = 2;
 localparam NUM_ARITH = 1;
 
@@ -119,12 +119,14 @@ begin
   $display("Expected:");
   print_af_point(expected);
   
+  $display("test0 finished in %d clock cycles", (finish_time-start_time)/CLK_PERIOD);
+  
   assert(to_affine(jb_from_mont(out)) == expected) else begin
     $display("Was:      0x%0x", to_affine(jb_from_mont(out)));
     $fatal(1, "ERROR: Output did not match");
   end
 
-  $display("test0 PASSED in %d clock cycles", (finish_time-start_time)/CLK_PERIOD);
+  $display("test0 PASSED");
   in_p.delete();
   in_s.delete();
 end
