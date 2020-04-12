@@ -20,11 +20,12 @@
  */ 
 
 module tree_packet_arb_1_to_n # (
-  parameter DAT_BYTS,
+  parameter DAT_BYTS = 8,
   parameter DAT_BITS = DAT_BYTS*8,
-  parameter CTL_BITS,
-  parameter NUM_OUT,
-  parameter OVR_WRT_BIT = CTL_BITS - $clog2(NUM_OUT), // What bits in ctl are overwritten with channel id
+  parameter CTL_BITS = 8,
+  parameter NUM_OUT = 8,
+  parameter LOG2_NUM_OUT = NUM_OUT == 1 ? 1 : $clog2(NUM_OUT),
+  parameter OVR_WRT_BIT = CTL_BITS - LOG2_NUM_OUT, // What bits in ctl are overwritten with channel id
   parameter N = 2, //  log n-tree
   parameter MAX = NUM_OUT // Don't change this
 ) (
@@ -33,6 +34,8 @@ module tree_packet_arb_1_to_n # (
   if_axi_stream.sink   i_axi, 
   if_axi_stream.source o_n_axi[NUM_OUT-1:0]
 );
+
+localparam LOG2_MAX = MAX == 1 ? 1 : $clog2(MAX);
 
 // This uses pipeline stages
 generate
@@ -49,7 +52,7 @@ generate
     for (h = 0; h < NUM_OUT; h++) begin: FINAL_GEN
       logic in_range_i;
       always_comb rdy_i[h] = o_n_axi[h].rdy && in_range_i;
-      always_comb in_range_i = i_axi.ctl[OVR_WRT_BIT +: $clog2(MAX)] / (MAX/NUM_OUT) == h;
+      always_comb in_range_i = i_axi.ctl[OVR_WRT_BIT +: LOG2_MAX] / (MAX/NUM_OUT) == h;
       always_comb begin
         o_n_axi[h].copy_if_comb(i_axi.dat, i_axi.val && in_range_i, i_axi.sop, i_axi.eop, i_axi.err, i_axi.mod, i_axi.ctl);
       end
@@ -95,7 +98,7 @@ generate
         
         for (h = 0; h < NUM_OUT_INT; h++) begin: FINAL_GEN
           logic in_range_o;
-          always_comb in_range_o = o_pipe.ctl[OVR_WRT_BIT +: $clog2(MAX)] / (MAX/NUM_OUT) == g*N + h;
+          always_comb in_range_o = o_pipe.ctl[OVR_WRT_BIT +: LOG2_MAX] / (MAX/NUM_OUT) == g*N + h;
           always_comb begin
             rdy_o[h] = o_n_axi[g*N + h].rdy && in_range_o;
             o_n_axi[g*N + h].copy_if_comb(o_pipe.dat, o_pipe.val && in_range_o, o_pipe.sop, o_pipe.eop, o_pipe.err, o_pipe.mod, o_pipe.ctl);

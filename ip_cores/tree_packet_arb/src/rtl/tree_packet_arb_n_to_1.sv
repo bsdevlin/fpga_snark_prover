@@ -19,11 +19,12 @@
  */ 
 
 module tree_packet_arb_n_to_1 # (
-  parameter DAT_BYTS,
+  parameter DAT_BYTS = 8,
   parameter DAT_BITS = DAT_BYTS*8,
-  parameter CTL_BITS,
-  parameter NUM_IN,
-  parameter OVR_WRT_BIT = CTL_BITS - $clog2(NUM_IN), // What bits in ctl are overwritten with channel id
+  parameter CTL_BITS = 8,
+  parameter NUM_IN = 8,
+  parameter LOG2_NUM_IN = NUM_IN == 1 ? 1 : $clog2(NUM_IN),
+  parameter OVR_WRT_BIT = CTL_BITS - LOG2_NUM_IN, // What bits in ctl are overwritten with channel id
   parameter N = 2, //  log n-tree
   parameter MAX = NUM_IN // Don't change
 ) (
@@ -52,7 +53,7 @@ generate
         i_axi_int[h].copy_if_comb(i_n_axi[g*N + h].dat, i_n_axi[g*N + h].val, i_n_axi[g*N + h].sop, i_n_axi[g*N + h].eop, i_n_axi[g*N + h].err, i_n_axi[g*N + h].mod, i_n_axi[g*N + h].ctl);
         i_n_axi[g*N + h].rdy = i_axi_int[h].rdy;
         if (MAX == NUM_IN)
-          i_axi_int[h].ctl[OVR_WRT_BIT +: $clog2(NUM_IN)] = g*N + h;
+          i_axi_int[h].ctl[OVR_WRT_BIT +: LOG2_NUM_IN] = g*N + h;
       end
     end
     
