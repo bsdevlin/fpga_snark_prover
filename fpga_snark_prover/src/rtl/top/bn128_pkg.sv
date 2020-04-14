@@ -46,6 +46,8 @@ package bn128_pkg;
   localparam FE2_CONST_3 = USE_MONT_MULT == "YES" ? {256'd0, fe_to_mont(256'd3)} : {256'd0, 256'd3};
   localparam FE2_CONST_4 = USE_MONT_MULT == "YES" ? {256'd0, fe_to_mont(256'd4)} : {256'd0, 256'd4};
   localparam FE2_CONST_8 = USE_MONT_MULT == "YES" ? {256'd0, fe_to_mont(256'd8)} : {256'd0, 256'd8};
+  
+  localparam VERBOSE = 0; // Set to 1 to get debug printouts from some of the functions.
 
   /////////////////////////// Typedefs ///////////////////////////
   typedef logic [DAT_BITS-1:0] fe_t;
@@ -358,13 +360,30 @@ package bn128_pkg;
         incr++;
       end
     end
-  
-    res = 0;
-    for (int i = 0; i < NUM_CORES; i++) begin
-       res_int[i] = multiexp_batch(s_int[i], p_int[i]);
-       res = add_jb_point(res_int[i], res);
-    end
     
+    for (int i = 0; i < NUM_CORES; i++) begin
+      res_int[i] = multiexp_batch(s_int[i], p_int[i]);
+      if (VERBOSE == 1) begin
+        $display("point res %d", i);
+        $display("x:0x%h", res_int[i].x);
+        $display("y:0x%h", res_int[i].y);
+        $display("z:0x%h", res_int[i].z);
+      end  
+    end
+    res = 0;
+    // Now we combine results log2
+    for (int stage = NUM_CORES; stage > 1; stage=stage/2) begin
+       for (int i = 0; i < stage/2; i=i+1) begin
+         res_int[i] = add_jb_point(res_int[i], res_int[i+(stage/2)]);
+         if (VERBOSE == 1) begin
+           $display("tree point res %d stage %d", i, stage);
+           $display("x:0x%h", res_int[i].x);
+           $display("y:0x%h", res_int[i].y);
+           $display("z:0x%h", res_int[i].z);
+         end
+       end
+    end
+    res = res_int[0];
     return res;
   endfunction  
 

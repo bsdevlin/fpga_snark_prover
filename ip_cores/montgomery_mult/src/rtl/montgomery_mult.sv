@@ -45,11 +45,6 @@ module montgomery_mult #(
   if_axi_stream.sink          i_sub_if
 );
 
-logic [CTL_BITS-1:0] ctl;
-logic [DAT_BITS-1:0] dat;
-logic val;
-logic rdy;
-
 if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS)) fifo_in_if(i_clk);
 if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS)) fifo_out_if(i_clk);
 logic fifo_out_full;
@@ -199,7 +194,7 @@ end
 
 // Fifo to store inputs (as we need to do final add and control)
 axi_stream_fifo #(
-  .SIZE     ( 16         ),
+  .SIZE     ( 32         ),
   .DAT_BITS ( DAT_BITS*2 ),
   .CTL_BITS ( CTL_BITS   )
 )

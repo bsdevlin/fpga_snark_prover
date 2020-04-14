@@ -56,12 +56,13 @@ localparam S_BITS = $bits(FE_TYPE);
 localparam P_BITS = $bits(FP_TYPE);
 localparam P_S_BITS = S_BITS + P_BITS;
 localparam LOG2_CORES = (NUM_CORES == 1 ? 1 : $clog2(NUM_CORES));
-
 logic [63:0] num_in;
 
 logic [LOG2_CORES-1:0] core_sel;    // Used when muxing traffic into the cores
-logic [LOG2_CORES:0] final_stage; // When doing the final add
-logic [NUM_CORES-1:0] final_stage_oh; // One hot bitmask
+
+logic [NUM_CORES-1:0][LOG2_CORES-1:0] final_map;
+logic [NUM_CORES-1:0][LOG2_CORES-1:0] final_map_delta;
+
 logic [$clog2(DAT_BITS)-1:0] key_cnt;
 logic [63:0] in_cnt;
 logic discard;
@@ -76,13 +77,13 @@ if_axi_stream #(.DAT_BITS(P_BITS), .CTL_BITS(CTL_BITS_INT))   res_pnt_if (i_clk)
 enum {IDLE, MULTI_EXP, FINAL_ADD} state;
 
 always_comb begin
-  res_pnt_if.rdy = (state == FINAL_ADD) && (~o_pnt_if.val || (o_pnt_if.val && o_pnt_if.rdy));
+  res_pnt_if.rdy = (state == FINAL_ADD) && (~pnt_scl_if_add.val || (pnt_scl_if_add.val && pnt_scl_if_add.rdy));
   pnt_scl_if_add.rdy = pnt_scl_in_if.rdy;
   i_pnt_scl_if.rdy = pnt_scl_in_if.rdy && (state == MULTI_EXP);
   if (state == FINAL_ADD) begin
     pnt_scl_in_if.copy_if_comb(pnt_scl_if_add.dat, pnt_scl_if_add.val, pnt_scl_if_add.sop, pnt_scl_if_add.eop, pnt_scl_if_add.err, pnt_scl_if_add.mod, pnt_scl_if_add.ctl);
   end else begin
-    pnt_scl_in_if.copy_if_comb(i_pnt_scl_if.dat, i_pnt_scl_if.val, i_pnt_scl_if.sop, i_pnt_scl_if.eop, i_pnt_scl_if.err, i_pnt_scl_if.mod, i_pnt_scl_if.ctl);
+    pnt_scl_in_if.copy_if_comb(i_pnt_scl_if.dat, i_pnt_scl_if.val && (state == MULTI_EXP), i_pnt_scl_if.sop, i_pnt_scl_if.eop, i_pnt_scl_if.err, i_pnt_scl_if.mod, i_pnt_scl_if.ctl);
     pnt_scl_in_if.ctl[CTL_BITS +: LOG2_CORES] = core_sel; 
   end     
 end
@@ -95,10 +96,10 @@ always_ff @ (posedge i_clk) begin
     o_pnt_if.reset_source();
     key_cnt <= 0;
     in_cnt <= 0;
-    final_stage <= 0;
     pnt_scl_if_add.reset_source();
-    final_stage_oh <= 0;
     discard <= 0;
+    init_final_map();
+    init_final_map_delta();
   end else begin
     if (o_pnt_if.rdy) o_pnt_if.val <= 0;
     if (pnt_scl_if_add.rdy) pnt_scl_if_add.val <= 0;
@@ -106,11 +107,11 @@ always_ff @ (posedge i_clk) begin
     case (state)
       IDLE: begin
         num_in <= i_num_in;
+        init_final_map();
         core_sel <= 0;
         key_cnt <= 0;
         in_cnt <= 0;
         pnt_scl_if_add.val <= 0;
-        final_stage <= NUM_CORES;
         if (i_pnt_scl_if.val && o_pnt_if.val == 0) begin
           state <= MULTI_EXP;
         end
@@ -124,7 +125,6 @@ always_ff @ (posedge i_clk) begin
             if (key_cnt == DAT_BITS-1) begin
               core_sel <= 0;
               state <= FINAL_ADD;
-              final_stage_oh <= 0;
             end
           end
         end
@@ -133,24 +133,20 @@ always_ff @ (posedge i_clk) begin
       FINAL_ADD: begin
         discard <= 0;
         if (res_pnt_if.val && res_pnt_if.rdy) begin
-          final_stage_oh[res_pnt_if.ctl[CTL_BITS +: LOG2_CORES]] <= 1;
           // First check if this is the final point
-          if (final_stage == 1) begin
-            final_stage_oh <= 0;
-            o_pnt_if.copy_if(res_pnt_if.dat, res_pnt_if.val, res_pnt_if.sop, res_pnt_if.eop, res_pnt_if.err, res_pnt_if.mod, res_pnt_if.ctl);
-            state <= IDLE;
-          end else if (res_pnt_if.ctl[CTL_BITS_INT-1:CTL_BITS] < (final_stage>>1)) begin
-            // We can discard this point, do nothing
-            discard <= 1;
-          end else begin
-            // We need to send this one back to (ctl - final_stage/2) to be added
-            pnt_scl_if_add.copy_if({res_pnt_if.dat, {S_BITS{1'd0}}}, res_pnt_if.val, res_pnt_if.sop, res_pnt_if.eop, res_pnt_if.err, res_pnt_if.mod, res_pnt_if.ctl);
-            pnt_scl_if_add.ctl[CTL_BITS +: LOG2_CORES] <= res_pnt_if.ctl[CTL_BITS +: LOG2_CORES] - (final_stage>>1);
-            pnt_scl_if_add.ctl[0] <= 1;                
-            if (check_mask(final_stage_oh, res_pnt_if.ctl[CTL_BITS +: LOG2_CORES], final_stage)) begin
-              final_stage_oh <= 0;
-              final_stage <= final_stage >> 1;
+          if (final_map[res_pnt_if.ctl[CTL_BITS_INT-1:CTL_BITS]] == 0) begin
+            if (res_pnt_if.ctl[CTL_BITS_INT-1:CTL_BITS] == 0) begin
+              o_pnt_if.copy_if(res_pnt_if.dat, res_pnt_if.val, res_pnt_if.sop, res_pnt_if.eop, res_pnt_if.err, res_pnt_if.mod, res_pnt_if.ctl);
+              state <= IDLE;
+            end else begin
+              pnt_scl_if_add.copy_if({res_pnt_if.dat, {S_BITS{1'd0}}}, res_pnt_if.val, res_pnt_if.sop, res_pnt_if.eop, res_pnt_if.err, res_pnt_if.mod, res_pnt_if.ctl);
+              pnt_scl_if_add.ctl[CTL_BITS +: LOG2_CORES] <= final_map_delta[res_pnt_if.ctl[CTL_BITS +: LOG2_CORES]];
+              pnt_scl_if_add.ctl[0] <= 1; 
             end
+          end else begin
+            // Discard
+            discard <= 1;
+            final_map[res_pnt_if.ctl[CTL_BITS_INT-1:CTL_BITS]] <= final_map[res_pnt_if.ctl[CTL_BITS_INT-1:CTL_BITS]] - 1;            
           end
         end
       end
@@ -158,13 +154,24 @@ always_ff @ (posedge i_clk) begin
   end
 end
 
-// Function to get the results mask
-function logic check_mask (input logic [NUM_CORES-1:0] in_mask, input int set, input int limit);
-  check_mask = 1;
-  for (int i = limit/2; i < limit; i++)
-    if (i!= set && in_mask[i] == 0) 
-      check_mask = 0;
-endfunction
+task init_final_map();
+  // each number represents the number of times to discard before using
+  final_map = 0;
+  for (int i = NUM_CORES/2; i > 0; i=i/2)
+    for (int j = 0; j < i; j++)
+      final_map[j] = final_map[j] + 1;
+      
+endtask
+
+task init_final_map_delta();
+  for (int i = 0; i < NUM_CORES; i++) begin
+    final_map_delta[i] = 1;
+    while (final_map_delta[i]*2 <= i)
+      final_map_delta[i] = final_map_delta[i]*2;
+    final_map_delta[i] = i - final_map_delta[i];
+  end
+endtask
+
 
 // Instantiate the cores and arithmetic blocks
 tree_packet_arb_1_to_n # (

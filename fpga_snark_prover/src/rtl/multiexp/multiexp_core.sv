@@ -99,9 +99,8 @@ always_ff @ (posedge i_clk) begin
         num_in <= i_num_in;
         key_cnt <= KEY_BITS-1;
         in_cnt <= 0;
-        i_pnt_scl_if.rdy <= 0;  
+        i_pnt_scl_if.rdy <= 0; 
         if (~o_pnt_if.val) begin
-          i_pnt_scl_if.rdy <= i_pnt_scl_if.val; 
           o_pnt_if.ctl <= i_pnt_scl_if.ctl;
           if (i_pnt_scl_if.val) begin
             if (i_pnt_scl_if.ctl[0] == 0) begin
@@ -109,8 +108,8 @@ always_ff @ (posedge i_clk) begin
               state <= ADD;
             end else begin
             // This is the state used when collapsing multiple core's results together
-              i_pnt_scl_if.rdy <= 1;
               add_val_i <= 1;
+              i_pnt_scl_if.rdy <= 1; 
               add_dat_i <= i_pnt_scl_if.dat[$bits(FE_TYPE) +: $bits(FP_TYPE)];
               o_pnt_if.val <= 0;
               key_cnt <= 0;
@@ -135,6 +134,7 @@ always_ff @ (posedge i_clk) begin
       ADD: begin
         i_pnt_scl_if.rdy <= 1;
         if (i_pnt_scl_if.val && i_pnt_scl_if.rdy) begin
+          i_pnt_scl_if.rdy <= 0;
           if (i_pnt_scl_if.dat[key_cnt] == 1) begin
             add_val_i <= 1;
             add_dat_i <= i_pnt_scl_if.dat[$bits(FE_TYPE) +: $bits(FP_TYPE)];
