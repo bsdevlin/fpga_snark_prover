@@ -26,7 +26,7 @@ package bn128_pkg;
   localparam WINDOW_ENT = (1 << WINDOW_BITS) - 1;
   
   // These parameters change the size and performance of the multi_exp kernel
-  localparam NUM_MULTIEXP_CORES = 8;
+  localparam NUM_MULTIEXP_CORES = 16;
   localparam NUM_MULTIEXP_ARITH = 1;
 
   // Parameters used during Montgomery multiplication
