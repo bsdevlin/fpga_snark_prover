@@ -30,7 +30,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "bn128.hpp"
 #include <vector>
 
-#define DATA_SIZE 256
+
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -38,27 +38,36 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
+	uint64_t num_in = 16;
+
     std::string binaryFile = argv[1];
+
+    Bn128* bn128 = new Bn128();
 
     cl_int err;
     cl::CommandQueue q;
     cl::Context context;
     cl::Kernel krnl;
-    auto size = DATA_SIZE;
+    
     //Allocate Memory in Host Memory
-    auto vector_size_bytes = sizeof(int) * size;
-    std::vector<int, aligned_allocator<int>> source_input1(size);
-    std::vector<int, aligned_allocator<int>> source_input2(size);
-    std::vector<int, aligned_allocator<int>> source_hw_results(size);
-    std::vector<int, aligned_allocator<int>> source_sw_results(size);
+    size_t scalar_vector_size_bytes = BN128_BITS/8 * num_in;
+    size_t point_vector_size_bytes = 2 * BN128_BITS/8 * num_in;
+    size_t result_vector_size_bytes = 2 * BN128_BITS/8;
+    
+    std::vector<uint64_t, aligned_allocator<uint64_t>> scalar_input(scalar_vector_size_bytes/8);
+    std::vector<uint64_t, aligned_allocator<uint64_t>> point_input(point_vector_size_bytes/8);
+    std::vector<uint64_t, aligned_allocator<uint64_t>> source_hw_results(result_vector_size_bytes/8);
+//    std::vector<uint64_t, aligned_allocator<uint64_t>> source_sw_results(result_vector_size_bytes/8);
 
+    memset((void*)scalar_input.data(), 0, num_in*BN128_BITS/8);
     // Create the test data and Software Result
-    for (int i = 0; i < size; i++) {
-        source_input1[i] = i;
-        source_input2[i] = i;
-        source_sw_results[i] = source_input1[i] + source_input2[i];
-        source_hw_results[i] = 0;
+    for (size_t i = 0; i < num_in; i++) {
+        bn128->af_export_64((void*)point_input[i*2*BN128_BITS/64], bn128->G1_mont_af);
+        scalar_input[i*BN128_BITS/64] = 1 + i;
+      //  source_sw_results[i] = source_input1[i] + source_input2[i];
     }
+
+    memset((void*)source_hw_results.data(), 0, result_vector_size_bytes);
 
     //OPENCL HOST CODE AREA START
     //Create Program and Kernel
@@ -98,34 +107,33 @@ int main(int argc, char **argv) {
 
     //Allocate Buffer in Global Memory
     OCL_CHECK(err,
-              cl::Buffer buffer_r1(context,
+              cl::Buffer buffer_scalar(context,
                                    CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY,
-                                   vector_size_bytes,
-                                   source_input1.data(),
+                                   scalar_vector_size_bytes,
+                                   scalar_input.data(),
                                    &err));
     OCL_CHECK(err,
-              cl::Buffer buffer_r2(context,
+              cl::Buffer buffer_point(context,
                                    CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY,
-                                   vector_size_bytes,
-                                   source_input2.data(),
+                                   point_vector_size_bytes,
+                                   point_input.data(),
                                    &err));
     OCL_CHECK(err,
-              cl::Buffer buffer_w(context,
+              cl::Buffer buffer_result(context,
                                   CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY,
-                                  vector_size_bytes,
+                                  result_vector_size_bytes,
                                   source_hw_results.data(),
                                   &err));
 
     //Set the Kernel Arguments
-    uint64_t num_in = 4;
     OCL_CHECK(err, err = krnl.setArg(0, num_in));
-    OCL_CHECK(err, err = krnl.setArg(1, buffer_r1));
-    OCL_CHECK(err, err = krnl.setArg(2, buffer_r2));
-    OCL_CHECK(err, err = krnl.setArg(3, buffer_w));
+    OCL_CHECK(err, err = krnl.setArg(1, buffer_point));
+    OCL_CHECK(err, err = krnl.setArg(2, buffer_scalar));
+    OCL_CHECK(err, err = krnl.setArg(3, buffer_result));
 
     //Copy input data to device global memory
     OCL_CHECK(err,
-              err = q.enqueueMigrateMemObjects({buffer_r1, buffer_r2},
+              err = q.enqueueMigrateMemObjects({buffer_point, buffer_scalar},
                                                0 /* 0 means from host*/));
 
     //Launch the Kernel
@@ -133,26 +141,17 @@ int main(int argc, char **argv) {
 
     //Copy Result from Device Global Memory to Host Local Memory
     OCL_CHECK(err,
-              err = q.enqueueMigrateMemObjects({buffer_w},
+              err = q.enqueueMigrateMemObjects({buffer_result},
                                                CL_MIGRATE_MEM_OBJECT_HOST));
     OCL_CHECK(err, err = q.finish());
 
     //OPENCL HOST CODE AREA END
 
-    // Compare the results of the Device to the simulation
-    int match = 0;
-    for (int i = 0; i < size; i++) {
-        if (source_hw_results[i] != source_sw_results[i]) {
-            std::cout << "Error: Result mismatch" << std::endl;
-            std::cout << "i = " << i
-                      << " Software result = " << source_sw_results[i]
-                      << " Device result = " << source_hw_results[i]
-                      << std::endl;
-            match = 1;
-            break;
-        }
+    std::cout << "Result: 0x";
+    for (size_t i = 0; i < result_vector_size_bytes; i++) {
+      std::cout << std::hex << *((uint8_t*)source_hw_results.data() + i);
     }
+    std::cout << std::endl;
 
-    std::cout << "TEST " << (match ? "FAILED" : "PASSED") << std::endl;
-    return (match ? EXIT_FAILURE : EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 }
