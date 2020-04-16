@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
 
     std::string binaryFile = argv[1];
 
-    Bn128* bn128 = new Bn128();
+   Bn128 bn128;
 
     cl_int err;
     cl::CommandQueue q;
@@ -52,22 +52,33 @@ int main(int argc, char **argv) {
     //Allocate Memory in Host Memory
     size_t scalar_vector_size_bytes = BN128_BITS/8 * num_in;
     size_t point_vector_size_bytes = 2 * BN128_BITS/8 * num_in;
-    size_t result_vector_size_bytes = 2 * BN128_BITS/8;
+    size_t result_vector_size_bytes = 3 * BN128_BITS/8; // Result is in jb
     
     std::vector<uint64_t, aligned_allocator<uint64_t>> scalar_input(scalar_vector_size_bytes/8);
     std::vector<uint64_t, aligned_allocator<uint64_t>> point_input(point_vector_size_bytes/8);
-    std::vector<uint64_t, aligned_allocator<uint64_t>> source_hw_results(result_vector_size_bytes/8);
+    std::vector<uint64_t, aligned_allocator<uint64_t>> hw_result(result_vector_size_bytes/8);
 //    std::vector<uint64_t, aligned_allocator<uint64_t>> source_sw_results(result_vector_size_bytes/8);
 
     memset((void*)scalar_input.data(), 0, num_in*BN128_BITS/8);
+
+//bn128.print_af(bn128.G1_mont_af);
+
     // Create the test data and Software Result
     for (size_t i = 0; i < num_in; i++) {
-        bn128->af_export_64((void*)point_input[i*2*BN128_BITS/64], bn128->G1_mont_af);
+        bn128.af_export((void*)&point_input[i*2*BN128_BITS/64], bn128.G1_mont_af);
         scalar_input[i*BN128_BITS/64] = 1 + i;
       //  source_sw_results[i] = source_input1[i] + source_input2[i];
     }
 
-    memset((void*)source_hw_results.data(), 0, result_vector_size_bytes);
+//bn128.print_af(*((Bn128::af_fp_t*)((void*)point_input.data())));
+
+  //bn128.af_export_64((void*)point_input.data(), bn128.G1_mont_af);
+  //  for (size_t i = 0; i < 32; i++) {
+  //      printf("0x%lx\n", point_input[i]);
+  //  }
+
+
+    memset((void*)hw_result.data(), 0, result_vector_size_bytes);
 
     //OPENCL HOST CODE AREA START
     //Create Program and Kernel
@@ -122,7 +133,7 @@ int main(int argc, char **argv) {
               cl::Buffer buffer_result(context,
                                   CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY,
                                   result_vector_size_bytes,
-                                  source_hw_results.data(),
+                                  hw_result.data(),
                                   &err));
 
     //Set the Kernel Arguments
@@ -147,11 +158,23 @@ int main(int argc, char **argv) {
 
     //OPENCL HOST CODE AREA END
 
-    std::cout << "Result: 0x";
-    for (size_t i = 0; i < result_vector_size_bytes; i++) {
-      std::cout << std::hex << *((uint8_t*)source_hw_results.data() + i);
+    printf("Result=");
+
+  for (size_t i = 0; i < 12; i++) {
+        printf("0x%lx\n", hw_result[i]);
     }
-    std::cout << std::endl;
+
+Bn128::jb_fp_t res_p;
+//mpz_init(res_p.x);
+//mpz_init(res_p.y);
+//mpz_init(res_p.z);
+bn128.jb_import(res_p, hw_result.data());
+bn128.print_jb(res_p);
+
+//	bn128.print_af(*((Bn128::af_fp_t*)((void*)&hw_result[0])));
+
+
+//	bn128.print_jb(*((Bn128::jb_fp_t*)((void*)hw_result.data())));
 
     return EXIT_SUCCESS;
 }

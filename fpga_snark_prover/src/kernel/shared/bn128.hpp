@@ -43,12 +43,6 @@ protected:
 	mpz_t modulus;
 public:
 	Bn128 () {
-
-		mpz_init_set_str(G1_af.x, G1_X, 10);
-		mpz_init_set_str(G1_af.y, G1_Y, 10);
-
-		af_to_mont(G1_af, G1_mont_af);
-		
 		mpz_init_set_str(modulus, BN128_MODULUS, 10);
 
 		mpz_init_set_ui(reducer, 1);
@@ -73,6 +67,11 @@ public:
 		mpz_init(converted_one);
 		mpz_mod(converted_one, reducer, modulus);
 
+		mpz_init_set_str(G1_af.x, G1_X, 10);
+		mpz_init_set_str(G1_af.y, G1_Y, 10);
+
+		af_to_mont(G1_af, G1_mont_af);
+
 		gmp_printf("Montgomery FACTOR is 0x%Zx\n", factor);
 		gmp_printf("Montgomery MASK is 0x%Zx\n", mask);
 		gmp_printf("Montgomery CONVERTED_ONE is 0x%Zx\n", converted_one);
@@ -82,7 +81,7 @@ public:
 	}
 
 	// Montgomery multiplication
-	void mont_mult(mpz_t result, mpz_t op1, mpz_t op2) {
+	void mont_mult(mpz_t &result, mpz_t op1, mpz_t op2) {
 		mpz_t tmp;
 		mpz_init(tmp);
 		mpz_mul(tmp, op1, op2);
@@ -101,39 +100,52 @@ public:
 	}
 
 	// Convert into Montgomery form
-	void to_mont(mpz_t result) {
+	void to_mont(mpz_t &result) {
 		mont_mult(result, result, reciprocal_sq);
 	}
 
 	// Convert from Montgomery form
-	void from_mont(mpz_t result) {
+	void from_mont(mpz_t &result) {
 		mpz_t tmp;
 		mpz_init(tmp);
 		mpz_set_ui(tmp, 1);
 		mont_mult(result, result, tmp);
 	}
 
-	void af_to_jb(af_fp_t af, jb_fp_t jb) {
+	void af_to_jb(af_fp_t af, jb_fp_t &jb) {
 		mpz_init_set (jb.x, af.x);
 		mpz_init_set (jb.y, af.y);
 		mpz_init_set_ui (jb.z, 1);
 	}
 
-	void af_to_mont(af_fp_t af, af_fp_t af_mont) {
+	void af_to_mont(af_fp_t af, af_fp_t &af_mont) {
 		mpz_init_set (af_mont.x, af.x);
 		to_mont(af_mont.x);
 		mpz_init_set (af_mont.y, af.y);
 		to_mont(af_mont.y);
 	}
 
-	void af_export_64 (void* data, af_fp_t af) {
+	void af_export (void* data, af_fp_t af) {
 		mpz_export(data, NULL, -1, BN128_BITS/8, -1, 0, af.x);
 		mpz_export((void*)((uint8_t*)data + BN128_BITS/8), NULL, -1, BN128_BITS/8, -1, 0, af.y);
+	}
+
+	void jb_import (jb_fp_t &jb, void* data) {
+		mpz_import(jb.x, 1, -1, BN128_BITS/8, -1, 0, data);
+		gmp_printf("(x=0x%Zx\n", jb.x);
+		mpz_import(jb.y, 1, -1, BN128_BITS/8, -1, 0, (void*)((uint8_t*)data + BN128_BITS/8));
+		gmp_printf("(x=0x%Zx\n", jb.y);
+		mpz_import(jb.z, 1, -1, BN128_BITS/8, -1, 0, (void*)((uint8_t*)data + 2*BN128_BITS/8));
+		gmp_printf("(x=0x%Zx\n", jb.z);
 	}
 
 
 	void print_af(af_fp_t af) {
 		gmp_printf("point (x=0x%Zx, y=0x%Zx)\n", af.x, af.y);
+	}
+	
+	void print_jb(jb_fp_t jb) {
+		gmp_printf("point (x=0x%Zx, y=0x%Zx, z=0x%Zx)\n", jb.x, jb.y, jb.z);
 	}
 };
 
