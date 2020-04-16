@@ -30,4 +30,5 @@ saturate the cores operating in parallel, so that performance would roughly be l
 | 16 | 2 | 47.393K | 
 | 32 | 1 | 48.945K |
 | 32 | 2 | 69.487K |
+
 It seems you probably want around 1 arithmetic unit per 16 cores to avoid losing performance. After ~30 cores the LUT usage forces the placement to be spanning super logic regions (SLRs), and performance is impacted heavily. So the kernel was programmed with 16 cores and 1 arithmetic unit.

@@ -37,7 +37,7 @@ logic res_cnt;
 always_comb begin
   in_pnt.x = i_pnt_if.dat[0 +: 256];
   in_pnt.y = i_pnt_if.dat[256 +: 256];
-  in_pnt.z = 1;
+  in_pnt.z = bn128_pkg::CONST_1;
 end
 
 always_comb begin
