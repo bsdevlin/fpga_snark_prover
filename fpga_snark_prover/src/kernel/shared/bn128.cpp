@@ -96,6 +96,29 @@ void Bn128::af_to_mont(af_fp_t af, af_fp_t &af_mont) {
 	to_mont(af_mont.y);
 }
 
+int Bn128::jb_to_af(jb_fp_t jb, af_fp_t &af) {
+	mpz_t tmp1, tmp2;
+	int error;
+
+	mpz_init(af.x);
+	mpz_init(af.y);
+	mpz_init(tmp);
+	mont_mult(tmp1, jb.z, jb.z);
+	mont_mult(tmp2, tmp1, jb.z);
+	error = (mpz_invert(tmp1, tmp1, modulus) = 0);
+	error |= (mpz_invert(tmp2, tmp2, modulus) = 0);
+
+	if (error) {
+		gmp_printf("ERROR while calculating inverse in jb_to_af()\n");
+		return -1;
+	}
+
+	mont_mult(af.x, jb.x, tmp1);
+	mont_mult(af.y, jb.y, tmp2);
+	return 0;
+}
+
+
 void Bn128::af_export (void* data, af_fp_t af) {
 	mpz_export(data, NULL, -1, BN128_BITS/8, -1, 0, af.x);
 	mpz_export((void*)((uint8_t*)data + BN128_BITS/8), NULL, -1, BN128_BITS/8, -1, 0, af.y);

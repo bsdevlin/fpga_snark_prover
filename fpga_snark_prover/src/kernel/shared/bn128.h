@@ -2,7 +2,7 @@
   This provides helper functions for interfacing with the FPGA kernels and transforming
   data into and out of Montgomery and/or Jacobian form coordinates.
 
-  We also implement some basic eliptic curve operations that can be used for verification.
+  We also implement some basic elliptic curve operations that can be used for verification.
 
   Copyright (C) 2019  Benjamin Devlin
 
@@ -67,8 +67,21 @@ public:
 	/* Convert from Montgomery form */
 	void from_mont(mpz_t &result);
 
+	/* Point multiplication */
+
+	/* Point addition in jacobian coordinates */
+
+	/* Point doubling in jacobian coordinates */
+
+	/* Inversion in G1 */
+
 	/* Convert a af_fp_t to jb_fp_t */
 	void af_to_jb(af_fp_t af, jb_fp_t &jb);
+
+	/* Do an inversion and convert from jb back into af coordinates.
+	   Both must be in Montgomery coordinates. Returns -1 if there was an error an no inverse
+	   exists, otherwise returns 0. */
+	void jb_to_af(jb_fp_t jb, af_fp_t &af);
 
     /* Convert a af_fp_t into a af_fp_t where the points are incoded in Montgomery form */
 	void af_to_mont(af_fp_t af, af_fp_t &af_mont);

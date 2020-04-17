@@ -30,18 +30,23 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "bn128.hpp"
 #include <vector>
 
+
+/*
+ This shows an example of using the multiexp kernel to take num_in
+ inputs and perform multi exponentiation over that many points.
+ The output is printed and checked at the end.
+ */
+
 int main(int argc, char **argv) {
-	if (argc != 2) {
-		std::cout << "Usage: " << argv[0] << " <XCLBIN File>" << std::endl;
+	if (argc != 3) {
+		std::cout << "Usage: " << argv[0] << " <XCLBIN File>" << "<num inputs>" << std::endl;
 		return EXIT_FAILURE;
 	}
 
-	uint64_t num_in = 16;
-
 	std::string binaryFile = argv[1];
+	uint64_t num_in = argv[2];
 
 	Bn128 bn128;
-
 	cl_int err;
 	cl::CommandQueue q;
 	cl::Context context;
@@ -55,18 +60,20 @@ int main(int argc, char **argv) {
 	std::vector<uint64_t, aligned_allocator<uint64_t>> scalar_input(scalar_vector_size_bytes/8);
 	std::vector<uint64_t, aligned_allocator<uint64_t>> point_input(point_vector_size_bytes/8);
 	std::vector<uint64_t, aligned_allocator<uint64_t>> hw_result(result_vector_size_bytes/8);
+	std::vector<uint64_t, aligned_allocator<uint64_t>> sw_result(result_vector_size_bytes/8);
 
 	memset((void*)scalar_input.data(), 0, num_in*BN128_BITS/8);
 
 
-	// Create the test data and Software Result
+	// Create the test data
 	for (size_t i = 0; i < num_in; i++) {
 		bn128.af_export((void*)&point_input[i*2*BN128_BITS/64], bn128.G1_mont_af);
 		scalar_input[i*BN128_BITS/64] = 1 + i;
-		//  source_sw_results[i] = source_input1[i] + source_input2[i];
 	}
-
 	memset((void*)hw_result.data(), 0, result_vector_size_bytes);
+
+	// Run the kernel
+
 
 	//OPENCL HOST CODE AREA START
 	//Create Program and Kernel
