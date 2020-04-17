@@ -96,6 +96,13 @@ void Bn128::af_to_mont(af_fp_t af, af_fp_t &af_mont) {
 	to_mont(af_mont.y);
 }
 
+void Bn128::af_from_mont(af_fp_t af_mont, af_fp_t &af) {
+	mpz_init_set (af.x, af_mont.x);
+	from_mont(af.x);
+	mpz_init_set (af.y, af_mont.y);
+	from_mont(af.y);
+}
+
 int Bn128::jb_to_af(jb_fp_t jb, af_fp_t &af) {
 	mpz_t tmp1, tmp2;
 	int error;

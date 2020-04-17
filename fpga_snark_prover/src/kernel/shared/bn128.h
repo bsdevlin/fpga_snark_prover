@@ -73,7 +73,7 @@ public:
 
 	/* Point doubling in jacobian coordinates */
 
-	/* Inversion in G1 */
+	/* Multi-exponentiation using batching */
 
 	/* Convert a af_fp_t to jb_fp_t */
 	void af_to_jb(af_fp_t af, jb_fp_t &jb);
@@ -83,8 +83,11 @@ public:
 	   exists, otherwise returns 0. */
 	void jb_to_af(jb_fp_t jb, af_fp_t &af);
 
-    /* Convert a af_fp_t into a af_fp_t where the points are incoded in Montgomery form */
+    /* Convert a af_fp_t into a af_fp_t where the points are encoded in Montgomery form */
 	void af_to_mont(af_fp_t af, af_fp_t &af_mont);
+
+    /* Convert a af_fp_t encoded in Montgeromy form back into a normal af point */
+	void af_from_mont(af_fp_t af_mont, af_fp_t &af);
 
 	/* Takes a void pointer and exports the data in a af_fp_t to it */
 	void af_export (void* data, af_fp_t af);
