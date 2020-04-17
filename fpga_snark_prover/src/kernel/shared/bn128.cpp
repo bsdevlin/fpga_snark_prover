@@ -47,11 +47,96 @@ Bn128::Bn128 () {
 
 	af_to_mont(G1_af, G1_mont_af);
 
+	mpz_init_ui(const_3, 3);
+	to_mont(const_3);
+
+	mpz_init_ui(const_2, 2);
+	to_mont(const_2);
+
 	gmp_printf("Montgomery FACTOR is 0x%Zx\n", factor);
 	gmp_printf("Montgomery MASK is 0x%Zx\n", mask);
 	gmp_printf("Montgomery CONVERTED_ONE is 0x%Zx\n", converted_one);
 	gmp_printf("Montgomery RECIPROCAL is 0x%Zx\n", reciprocal);
 	gmp_printf("Montgomery RECIPROCAL_SQ is 0x%Zx\n", reciprocal_sq);
+}
+
+void Bn128::mul(fe_t &result, fe_t a, fe_t b) {
+	mont_mult((mpz_t)result, (mpz_t)a, (mpz_t)b);
+}
+
+void Bn128::add(fe_t &result, fe_t a, fe_t b) {
+	mpz_add(result, a, b);
+	mpz_mod(result, result, modulus);
+}
+
+void Bn128::sub(fe_t &result, fe_t a, fe_t b) {
+	mpz_sub(result, a, b);
+	mpz_mod(result, result, modulus);
+}
+
+void Bn128::pt_dbl(af_fp_t &result, af_fp_t p) {
+	mpz_t tmp;
+	mpz_init(result.x);
+	mpz_init(result.y);
+	mpz_init(tmp);
+
+	// Check for zero;
+
+	mul(tmp, p.y, const_2);
+	mpz_invert(tmp, tmp, modulus);
+	mul(tmp, tmp, const_3);
+	mul(tmp, tmp, p.x);
+	mul(tmp, tmp, p.x);
+
+	mul(result.x, tmp, tmp);
+	sub(result.x, result.x, p.x);
+	sub(result.x, result.x, p.x);
+
+	sub(result.y, p.x, r.x);
+	mul(result.y, result.y, tmp);
+	sub(result.y, result.y, p.y);
+
+	mpz_mod(result.x, result.x, modulus);
+	mpz_mod(result.y, result.y, modulus);
+}
+
+void Bn128::pt_add(af_fp_t &result, af_fp_t p, af_fp_t q) {
+	mpz_t tmp0, tmp1;
+	mpz_init(result.x);
+	mpz_init(result.y);
+	mpz_init(tmp0);
+	mpz_init(tmp1);
+
+	// Check for zero;
+
+	if (mpz_cmp(p.x, q.x) == 0 && mpz_cmp(p.y, q.y) == 0) {
+		return pt_dbl(result, a);
+	}
+
+	sub(tmp0, q.x, p.x);
+	mpz_invert(tmp0, tmp0, modulus);
+	sub(tmp1, q.y, p.y);
+	mul(tmp0, tmp0, tmp1);
+
+	mul(result.x, tmp0, tmp0);
+	sub(result.x, result.x, p.x);
+
+	sub(result.y, p.x, result.x);
+	mul(result.y, result.y, tmp0);
+	sub(result.y, result.y, p.y);
+}
+
+af_fp_t result Bn128::pt_mul(af_fp_t p, int n) {
+	int i;
+	af_fp_t r;
+	mpz_init_set_ui(r.x, 0);
+	mpz_init_set_ui(r.y, 0);
+
+	for (i = 1; i <= n; i <<= 1) {
+		if (i & n) r = pt_add(r, p);
+		p = pt_dbl(p);
+	}
+	return r;
 }
 
 void Bn128::mont_mult(mpz_t &result, mpz_t op1, mpz_t op2) {
@@ -112,8 +197,8 @@ int Bn128::jb_to_af(jb_fp_t jb, af_fp_t &af) {
 	mpz_init(tmp);
 	mont_mult(tmp1, jb.z, jb.z);
 	mont_mult(tmp2, tmp1, jb.z);
-	error = (mpz_invert(tmp1, tmp1, modulus) = 0);
-	error |= (mpz_invert(tmp2, tmp2, modulus) = 0);
+	error = (mpz_invert(tmp1, tmp1, modulus) == 0);
+	error |= (mpz_invert(tmp2, tmp2, modulus) == 0);
 
 	if (error) {
 		gmp_printf("ERROR while calculating inverse in jb_to_af()\n");
@@ -125,18 +210,16 @@ int Bn128::jb_to_af(jb_fp_t jb, af_fp_t &af) {
 	return 0;
 }
 
-
-void Bn128::af_export (void* data, af_fp_t af) {
+void Bn128::af_export(void* data, af_fp_t af) {
 	mpz_export(data, NULL, -1, BN128_BITS/8, -1, 0, af.x);
 	mpz_export((void*)((uint8_t*)data + BN128_BITS/8), NULL, -1, BN128_BITS/8, -1, 0, af.y);
 }
 
-void Bn128::jb_import (jb_fp_t &jb, void* data) {
+void Bn128::jb_import(jb_fp_t &jb, void* data) {
 	mpz_import(jb.x, 1, -1, BN128_BITS/8, -1, 0, data);
 	mpz_import(jb.y, 1, -1, BN128_BITS/8, -1, 0, (void*)((uint8_t*)data + BN128_BITS/8));
 	mpz_import(jb.z, 1, -1, BN128_BITS/8, -1, 0, (void*)((uint8_t*)data + 2*BN128_BITS/8));
 }
-
 
 void Bn128::print_af(af_fp_t af) {
 	gmp_printf("point (x=0x%Zx, y=0x%Zx)\n", af.x, af.y);

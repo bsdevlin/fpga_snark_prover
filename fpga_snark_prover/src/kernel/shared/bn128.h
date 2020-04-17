@@ -32,48 +32,39 @@
 
 class Bn128 {
 public:
+
+	typedef mpz_t fe_t;
+
 	typedef struct {
-		mpz_t x;
-		mpz_t y;
-		mpz_t z;
+		fe_t x;
+		fe_t y;
+		fe_t z;
 	} jb_fp_t;
 
 	typedef struct {
-		mpz_t x;
-		mpz_t y;
+		fe_t x;
+		fe_t y;
 	} af_fp_t;
 
-	af_fp_t G1_af;
 	af_fp_t G1_mont_af;
 
-protected:
-	mpz_t reducer;
-	mpz_t mask;
-	mpz_t factor;
-	mpz_t converted_one;
-	mpz_t reciprocal_sq;
-	mpz_t reciprocal;
-	mpz_t modulus;
+private:
+	fe_t reducer;
+	fe_t mask;
+	fe_t factor;
+	fe_t converted_one;
+	fe_t reciprocal_sq;
+	fe_t reciprocal;
+	fe_t modulus;
+	fe_t const_2;
+	fe_t const_3;
+	af_fp_t G1_af;
 public:
 	/* The constructor sets up the montgomery values */
-	Bn128 ();
+	Bn128();
 
-	/* Montgomery multiplication */
-	void mont_mult(mpz_t &result, mpz_t op1, mpz_t op2);
-
-	/* Convert into Montgomery form */
-	void to_mont(mpz_t &result);
-
-	/* Convert from Montgomery form */
-	void from_mont(mpz_t &result);
-
-	/* Point multiplication */
-
-	/* Point addition in jacobian coordinates */
-
-	/* Point doubling in jacobian coordinates */
-
-	/* Multi-exponentiation using batching */
+	/* Point multiplication. Coordinates are in Montgomery form.  */
+	af_fp_t result pt_mul(af_fp_t p, int n);
 
 	/* Convert a af_fp_t to jb_fp_t */
 	void af_to_jb(af_fp_t af, jb_fp_t &jb);
@@ -90,16 +81,37 @@ public:
 	void af_from_mont(af_fp_t af_mont, af_fp_t &af);
 
 	/* Takes a void pointer and exports the data in a af_fp_t to it */
-	void af_export (void* data, af_fp_t af);
+	void af_export(void* data, af_fp_t af);
 
 	/* Takes a jb_fp_t and fills it with data from a void pointer */
-	void jb_import (jb_fp_t &jb, void* data);
+	void jb_import(jb_fp_t &jb, void* data);
 
 	/* Print a af_fp_t point's coordinates */
 	void print_af(af_fp_t af);
 	
 	/* Print a jb_fp_t point's coordinates */
 	void print_jb(jb_fp_t jb);
+
+private:
+	/* Montgomery multiplication */
+	void mont_mult(mpz_t &result, mpz_t op1, mpz_t op2);
+
+	/* Convert into Montgomery form */
+	void to_mont(mpz_t &result);
+
+	/* Convert from Montgomery form */
+	void from_mont(mpz_t &result);
+
+	/* Point addition in affine coordinates. Coordinates are in Montgomery form. */
+	void pt_add(af_fp_t &result, af_fp_t p, af_fp_t q);
+
+	/* Point doubling in affine coordinates. Coordinates are in Montgomery form. */
+	void pt_dbl(af_fp_t &result, af_fp_t p);
+
+	/* Arithmetic on G1 field elements in Montgomery form */
+	void mul(fe_t &result, fe_t a, fe_t b);
+	void add(fe_t &result, fe_t a, fe_t b);
+	void sub(fe_t &result, fe_t a, fe_t b);
 };
 
 #endif
