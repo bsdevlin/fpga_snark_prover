@@ -32,4 +32,4 @@ ip_cores/           -- RTL ip cores for general use in this project.
 submodules/         -- Git submodules that reference other repositories.**
 ```
 
-** Make sure you have synced the git submodules folder in ```fpga_snark_prover/submodules/```.
+** Make sure you have synced the git submodules folder in ```fpga_snark_prover/submodules/``` with "git submodule update".
