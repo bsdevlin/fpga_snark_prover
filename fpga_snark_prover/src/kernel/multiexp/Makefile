@@ -1,9 +1,9 @@
 .PHONY: help
 
 help::
-	$(ECHO) "Makefile Usage:"
+	$(ECHO) "Makefile Usage, default TARGET is emulation (hw_emu):"
 	$(ECHO) "  make all TARGET=<hw_emu/hw>"
-	$(ECHO) "      Command to generate the design for specified Target and Shell."
+	$(ECHO) "      Command to generate the design for specified Target and Shell and run the test program."
 	$(ECHO) ""
 	$(ECHO) "  make clean "
 	$(ECHO) "      Command to remove the generated non-hardware files."
@@ -11,19 +11,12 @@ help::
 	$(ECHO) "  make cleanall"
 	$(ECHO) "      Command to remove all the generated files."
 	$(ECHO) ""
-	$(ECHO) "  make check TARGET=<hw_emu/hw>"
-	$(ECHO) "      Command to run application in emulation."
-	$(ECHO) "      By default, HOST_ARCH=x86. HOST_ARCH and SYSROOT is required for SoC shells"
-	$(ECHO) ""
-	$(ECHO) "  make build TARGET=<hw_emu/hw>"
-	$(ECHO) "      Command to build xclbin application."
-	$(ECHO) ""
 
 KERNEL_NAME := multiexp_kernel
 EXECUTABLE := host
 BUILD_DIR := build_output
 DEVICE := $(AWS_PLATFORM)
-TARGET := hw
+TARGET := hw_emu
 HOST_ARCH := x86
 
 # Points to top directory of Git Vitis repository
@@ -58,11 +51,12 @@ $(warning WARNING:Application supports only hw hw_emu TARGET. Please use the tar
 endif
 
 
-.PHONY: all clean cleanall $(BUILD_DIR)
+.PHONY: all clean cleanall $(BUILD_DIR) build run
 exe: $(EXECUTABLE)
 
-.PHONY: build
 build: $(BINARY_CONTAINERS)
+
+all: build exe run
 
 # Building kernel
 $(BUILD_DIR)/$(KERNEL_NAME).xclbin: $(BINARY_CONTAINER_vadd_OBJS)
@@ -73,4 +67,9 @@ $(BUILD_DIR)/$(KERNEL_NAME).xclbin: $(BINARY_CONTAINER_vadd_OBJS)
 $(EXECUTABLE): $(HOST_SRCS)
 	mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(HOST_INC) $(HOST_SRCS) -o '$(BUILD_DIR)/$@' $(LDFLAGS)
-	
+
+# Running the program
+run: $(EXECUTABLE) $(BUILD_DIR)/$(KERNEL_NAME).xclbin
+ifeq ($(TARGET),hw_emu)
+	cd $(BUILD_DIR); XCL_EMULATION_MODE=hw_emu ./$(EXECUTABLE) $(KERNEL_NAME).xclbin
+endif 

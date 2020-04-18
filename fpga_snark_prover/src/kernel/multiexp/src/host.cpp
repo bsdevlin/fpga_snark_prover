@@ -52,29 +52,33 @@ int main(int argc, char **argv) {
 	cl::Context context;
 	cl::Kernel krnl;
 
-//test
-Bn128::af_fp_t test_p;
-bn128.pt_mul(test_p, Bn128::G1_mont_af, 1);
-
 	//Allocate Memory in Host Memory
 	size_t scalar_vector_size_bytes = BN128_BITS/8 * num_in;
 	size_t point_vector_size_bytes = 2 * BN128_BITS/8 * num_in;
-	size_t result_vector_size_bytes = 3 * BN128_BITS/8; // Result is in jb
+	size_t result_vector_size_bytes = 3 * BN128_BITS/8; // Result is in jb in Montgomery form
 
 	std::vector<uint64_t, aligned_allocator<uint64_t>> scalar_input(scalar_vector_size_bytes/8);
 	std::vector<uint64_t, aligned_allocator<uint64_t>> point_input(point_vector_size_bytes/8);
 	std::vector<uint64_t, aligned_allocator<uint64_t>> hw_result(result_vector_size_bytes/8);
-	std::vector<uint64_t, aligned_allocator<uint64_t>> sw_result(result_vector_size_bytes/8);
 
-	memset((void*)scalar_input.data(), 0, num_in*BN128_BITS/8);
-
+	std::vector<std::pair<Bn128::af_fp_t, mpz_t>> sw_input_points;
+	Bn128::af_fp_t sw_result;
 
 	// Create the test data
 	for (size_t i = 0; i < num_in; i++) {
-		bn128.af_export((void*)&point_input[i*2*BN128_BITS/64], bn128.G1_mont_af);
-		scalar_input[i*BN128_BITS/64] = 1 + i;
+		Bn128::af_fp_t p = Bn128::G1_af;
+		mpz_t s; // TODO random vectors for s and p
+		mpz_init_set_ui(s, 1);
+
+		bn128.af_export((void*)&point_input[i*2*BN128_BITS/64], bn128.to_mont_af(p));
+		bn128.fe_export((void*)&scalar_input[i*BN128_BITS/64], s);
+		sw_input_points.push_back(std::pair<Bn128::af_fp_t, mpz_t>(p, s));
 	}
-	memset((void*)hw_result.data(), 0, result_vector_size_bytes);
+
+	// Expected result
+	sw_result = bn128.multi_exp(sw_input_points);
+	printf("Expected result:\n");
+	bn128.print_af(sw_result);
 
 	// Run the kernel
 
@@ -156,9 +160,21 @@ bn128.pt_mul(test_p, Bn128::G1_mont_af, 1);
 
 	//OPENCL HOST CODE AREA END
 
-	Bn128::jb_fp_t res_p;
-	bn128.jb_import(res_p, hw_result.data());
-	bn128.print_jb(res_p);
+	Bn128::jb_fp_t res_jb;
+	bn128.jb_import(res_jb, hw_result.data());
+	printf("Result from FPGA:\n");
+	bn128.print_jb(res_jb);
 
-	return EXIT_SUCCESS;
+	Bn128::af_fp_t res_af = bn128.mont_jb_to_af(res_jb);
+	printf("Converted back to af coordinates in normal form:\n");
+	bn128.print_af(res_af);
+	
+	if (res_af == sw_result) {	
+		printf("Result matched expected result\n");
+		return EXIT_SUCCESS;
+	} else {
+		printf("ERROR - Result did not match\n");
+		return EXIT_FAILURE;
+	}
+		
 }

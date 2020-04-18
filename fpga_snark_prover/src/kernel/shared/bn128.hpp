@@ -25,6 +25,7 @@
 
 #include <gmp.h>
 #include <stdint.h>
+#include <vector>
 
 #define BN128_BITS 256
 #define BN128_MODULUS "21888242871839275222246405745257275088696311157297823662689037894645226208583"
@@ -34,85 +35,88 @@
 class Bn128 {
 public:
 
-	typedef mpz_t fe_t;
+	struct jb_fp_t {
+		mpz_t x;
+		mpz_t y;
+		mpz_t z;
 
-	typedef struct {
-		fe_t x;
-		fe_t y;
-		fe_t z;
-	} jb_fp_t;
+    		bool operator==(const jb_fp_t& a) const {
+        		return (mpz_cmp(x, a.x) == 0 && 
+				mpz_cmp(y, a.y) == 0 &&
+				mpz_cmp(z, a.z) == 0);
+    		}
+	};
 
-	typedef struct {
-		fe_t x;
-		fe_t y;
-	} af_fp_t;
+	struct af_fp_t {
+		mpz_t x;
+		mpz_t y;
 
-	af_fp_t G1_mont_af;
+    		bool operator==(const af_fp_t& a) const {
+        		return (mpz_cmp(x, a.x) == 0 &&
+				mpz_cmp(y, a.y) == 0);
+    		}
+	};
+
+	static af_fp_t G1_af;
 
 private:
-	fe_t reducer;
-	fe_t mask;
-	fe_t factor;
-	fe_t converted_one;
-	fe_t reciprocal_sq;
-	fe_t reciprocal;
-	fe_t modulus;
-	fe_t const_2;
-	fe_t const_3;
-	af_fp_t G1_af;
+	mpz_t reducer;
+	mpz_t mask;
+	mpz_t factor;
+	mpz_t converted_one;
+	mpz_t reciprocal_sq;
+	mpz_t reciprocal;
+	mpz_t modulus;
 public:
-	/* The constructor sets up the montgomery values */
+	/* The constructor sets up the montgomery values. */
 	Bn128();
 
-	/* Point multiplication. Coordinates are in Montgomery form.  */
-	void pt_mul(af_fp_t &result, af_fp_t p, int n);
+	/* Naive implementation of G1 multi exponentiation of vector of point, scalar pairs */
+	af_fp_t multi_exp(std::vector<std::pair<Bn128::af_fp_t, mpz_t>> p_s);
 
-	/* Convert a af_fp_t to jb_fp_t */
-	void af_to_jb(af_fp_t af, jb_fp_t &jb);
+	/* Point multiplication p by scalar s. */
+	af_fp_t pt_mul(af_fp_t p, mpz_t s);
 
-	/* Do an inversion and convert from jb back into af coordinates.
-	   Both must be in Montgomery coordinates. Returns -1 if there was an error an no inverse
-	   exists, otherwise returns 0. */
-	int jb_to_af(jb_fp_t jb, af_fp_t &af);
+	/* Convert a af_fp_t in normal form to jb_fp_t in Montgomery form. */
+	jb_fp_t to_mont_jb(af_fp_t af);
 
-    /* Convert a af_fp_t into a af_fp_t where the points are encoded in Montgomery form */
-	void af_to_mont(af_fp_t af, af_fp_t &af_mont);
+	/* Do an inversion and convert from jb in Montgomery form back into af in normal form coordinates.
+	   Returns a 0 point if there was an error an no inverse exists. */
+	af_fp_t mont_jb_to_af(jb_fp_t jb);
+	
+	/* Converts an af point into montgomery form, used for loading input into FPGA as internally we convert into jb. */
+	af_fp_t to_mont_af(af_fp_t af);
 
-    /* Convert a af_fp_t encoded in Montgeromy form back into a normal af point */
-	void af_from_mont(af_fp_t af_mont, af_fp_t &af);
-
-	/* Takes a void pointer and exports the data in a af_fp_t to it */
+	/* Takes a void pointer and exports the point data in a af_fp_t to it */
 	void af_export(void* data, af_fp_t af);
 
-	/* Takes a jb_fp_t and fills it with data from a void pointer */
+	/* Takes a void pointer and exports the scalar data in a mpz_t to it */
+	void fe_export(void* data, mpz_t fe);
+	
+	/* Takes a jb_fp_t and fills it with jb point data from a void pointer. */
 	void jb_import(jb_fp_t &jb, void* data);
 
-	/* Print a af_fp_t point's coordinates */
+	/* Print a af_fp_t point's coordinates. */
 	void print_af(af_fp_t af);
 	
-	/* Print a jb_fp_t point's coordinates */
+	/* Print a jb_fp_t in Montgomery form point's coordinates. */
 	void print_jb(jb_fp_t jb);
 
 private:
-	/* Montgomery multiplication */
+	/* Montgomery multiplication. */
 	void mont_mult(mpz_t &result, mpz_t op1, mpz_t op2);
 
-	/* Convert into Montgomery form */
-	void to_mont(mpz_t &result);
+	/* Convert into Montgomery form. */
+	void to_mont(mpz_t &in);
 
-	/* Convert from Montgomery form */
-	void from_mont(mpz_t &result);
+	/* Convert from Montgomery form. */
+	void from_mont(mpz_t &in);
 
-	/* Point addition in affine coordinates. Coordinates are in Montgomery form. */
-	void pt_add(af_fp_t &result, af_fp_t p, af_fp_t q);
+	/* Point addition in affine coordinates. Coordinates are in normal form. */
+	af_fp_t pt_add(af_fp_t p, af_fp_t q);
 
-	/* Point doubling in affine coordinates. Coordinates are in Montgomery form. */
-	void pt_dbl(af_fp_t &result, af_fp_t p);
-
-	/* Arithmetic on G1 field elements in Montgomery form */
-	void mul(fe_t &result, fe_t a, fe_t b);
-	void add(fe_t &result, fe_t a, fe_t b);
-	void sub(fe_t &result, fe_t a, fe_t b);
+	/* Point doubling in affine coordinates. Coordinates are in normal form. */
+	af_fp_t pt_dbl(af_fp_t p);
 };
 
 #endif
