@@ -38,19 +38,23 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 int main(int argc, char **argv) {
-	if (argc != 3) {
-		std::cout << "Usage: " << argv[0] << " <XCLBIN File>" << "<num inputs>" << std::endl;
+	if (argc != 2) {
+		std::cout << "Usage: " << argv[0] << " <XCLBIN File>" << std::endl;
 		return EXIT_FAILURE;
 	}
 
 	std::string binaryFile = argv[1];
-	uint64_t num_in = argv[2];
+	uint64_t num_in = 16;
 
 	Bn128 bn128;
 	cl_int err;
 	cl::CommandQueue q;
 	cl::Context context;
 	cl::Kernel krnl;
+
+//test
+Bn128::af_fp_t test_p;
+bn128.pt_mul(test_p, Bn128::G1_mont_af, 1);
 
 	//Allocate Memory in Host Memory
 	size_t scalar_vector_size_bytes = BN128_BITS/8 * num_in;
@@ -73,7 +77,6 @@ int main(int argc, char **argv) {
 	memset((void*)hw_result.data(), 0, result_vector_size_bytes);
 
 	// Run the kernel
-
 
 	//OPENCL HOST CODE AREA START
 	//Create Program and Kernel

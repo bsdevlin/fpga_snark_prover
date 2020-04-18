@@ -15,7 +15,7 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <bn128.h>
+#include "bn128.hpp"
 
 Bn128::Bn128 () {
 	mpz_init_set_str(modulus, BN128_MODULUS, 10);
@@ -47,10 +47,10 @@ Bn128::Bn128 () {
 
 	af_to_mont(G1_af, G1_mont_af);
 
-	mpz_init_ui(const_3, 3);
+	mpz_init_set_ui(const_3, 3);
 	to_mont(const_3);
 
-	mpz_init_ui(const_2, 2);
+	mpz_init_set_ui(const_2, 2);
 	to_mont(const_2);
 
 	gmp_printf("Montgomery FACTOR is 0x%Zx\n", factor);
@@ -61,7 +61,7 @@ Bn128::Bn128 () {
 }
 
 void Bn128::mul(fe_t &result, fe_t a, fe_t b) {
-	mont_mult((mpz_t)result, (mpz_t)a, (mpz_t)b);
+	mont_mult(result, a, b);
 }
 
 void Bn128::add(fe_t &result, fe_t a, fe_t b) {
@@ -92,7 +92,7 @@ void Bn128::pt_dbl(af_fp_t &result, af_fp_t p) {
 	sub(result.x, result.x, p.x);
 	sub(result.x, result.x, p.x);
 
-	sub(result.y, p.x, r.x);
+	sub(result.y, p.x, result.x);
 	mul(result.y, result.y, tmp);
 	sub(result.y, result.y, p.y);
 
@@ -110,7 +110,7 @@ void Bn128::pt_add(af_fp_t &result, af_fp_t p, af_fp_t q) {
 	// Check for zero;
 
 	if (mpz_cmp(p.x, q.x) == 0 && mpz_cmp(p.y, q.y) == 0) {
-		return pt_dbl(result, a);
+		return pt_dbl(result, p);
 	}
 
 	sub(tmp0, q.x, p.x);
@@ -126,17 +126,17 @@ void Bn128::pt_add(af_fp_t &result, af_fp_t p, af_fp_t q) {
 	sub(result.y, result.y, p.y);
 }
 
-af_fp_t result Bn128::pt_mul(af_fp_t p, int n) {
+void Bn128::pt_mul(af_fp_t &result, af_fp_t p, int n) {
 	int i;
-	af_fp_t r;
-	mpz_init_set_ui(r.x, 0);
-	mpz_init_set_ui(r.y, 0);
+	mpz_init_set_ui(result.x, 0);
+	mpz_init_set_ui(result.y, 0);
 
 	for (i = 1; i <= n; i <<= 1) {
-		if (i & n) r = pt_add(r, p);
-		p = pt_dbl(p);
+		if (i & n) {
+			pt_add(result, result, p);
+		}
+		pt_dbl(p, p);
 	}
-	return r;
 }
 
 void Bn128::mont_mult(mpz_t &result, mpz_t op1, mpz_t op2) {
@@ -194,7 +194,9 @@ int Bn128::jb_to_af(jb_fp_t jb, af_fp_t &af) {
 
 	mpz_init(af.x);
 	mpz_init(af.y);
-	mpz_init(tmp);
+	mpz_init(tmp1);
+	mpz_init(tmp2);
+
 	mont_mult(tmp1, jb.z, jb.z);
 	mont_mult(tmp2, tmp1, jb.z);
 	error = (mpz_invert(tmp1, tmp1, modulus) == 0);
@@ -212,7 +214,7 @@ int Bn128::jb_to_af(jb_fp_t jb, af_fp_t &af) {
 
 void Bn128::af_export(void* data, af_fp_t af) {
 	mpz_export(data, NULL, -1, BN128_BITS/8, -1, 0, af.x);
-	mpz_export((void*)((uint8_t*)data + BN128_BITS/8), NULL, -1, BN128_BITS/8, -1, 0, af.y);
+	mpz_export((void*)((char*)data + BN128_BITS/8), NULL, -1, BN128_BITS/8, -1, 0, af.y);
 }
 
 void Bn128::jb_import(jb_fp_t &jb, void* data) {

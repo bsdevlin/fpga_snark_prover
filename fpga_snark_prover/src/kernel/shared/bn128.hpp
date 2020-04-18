@@ -24,6 +24,7 @@
 #define BN128_H
 
 #include <gmp.h>
+#include <stdint.h>
 
 #define BN128_BITS 256
 #define BN128_MODULUS "21888242871839275222246405745257275088696311157297823662689037894645226208583"
@@ -64,7 +65,7 @@ public:
 	Bn128();
 
 	/* Point multiplication. Coordinates are in Montgomery form.  */
-	af_fp_t result pt_mul(af_fp_t p, int n);
+	void pt_mul(af_fp_t &result, af_fp_t p, int n);
 
 	/* Convert a af_fp_t to jb_fp_t */
 	void af_to_jb(af_fp_t af, jb_fp_t &jb);
@@ -72,7 +73,7 @@ public:
 	/* Do an inversion and convert from jb back into af coordinates.
 	   Both must be in Montgomery coordinates. Returns -1 if there was an error an no inverse
 	   exists, otherwise returns 0. */
-	void jb_to_af(jb_fp_t jb, af_fp_t &af);
+	int jb_to_af(jb_fp_t jb, af_fp_t &af);
 
     /* Convert a af_fp_t into a af_fp_t where the points are encoded in Montgomery form */
 	void af_to_mont(af_fp_t af, af_fp_t &af_mont);
