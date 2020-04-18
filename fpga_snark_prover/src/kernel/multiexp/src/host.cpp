@@ -29,13 +29,29 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "xcl2.hpp"
 #include "bn128.hpp"
 #include <vector>
-
+#include <time.h>
 
 /*
  This shows an example of using the multiexp kernel to take num_in
  inputs and perform multi exponentiation over that many points.
  The output is printed and checked at the end.
  */
+
+// Start a nanosecond-resolution timer
+struct timespec timer_start(){
+    struct timespec start_time;
+    clock_gettime(CLOCK_REALTIME, &start_time);
+    return start_time;
+}
+
+// End a timer, returning nanoseconds elapsed as a long
+long timer_end(struct timespec start_time){
+    struct timespec end_time;
+    clock_gettime(CLOCK_REALTIME, &end_time);
+    long diffInNanos = (end_time.tv_sec - start_time.tv_sec) *
+        (long)1e9 + (end_time.tv_nsec - start_time.tv_nsec);
+    return diffInNanos;
+}
 
 int main(int argc, char **argv) {
 	if (argc != 2) {
@@ -44,7 +60,7 @@ int main(int argc, char **argv) {
 	}
 
 	std::string binaryFile = argv[1];
-	uint64_t num_in = 16;
+	uint64_t num_in = 32;
 
 	Bn128 bn128;
 	cl_int err;
@@ -66,9 +82,9 @@ int main(int argc, char **argv) {
 
 	// Create the test data
 	for (size_t i = 0; i < num_in; i++) {
-		Bn128::af_fp_t p = Bn128::G1_af;
-		mpz_t s; // TODO random vectors for s and p
-		mpz_init_set_ui(s, 1);
+		mpz_t s;
+		mpz_init_set_ui(s, i+1);
+		Bn128::af_fp_t p = bn128.pt_mul(Bn128::G1_af, s);
 
 		bn128.af_export((void*)&point_input[i*2*BN128_BITS/64], bn128.to_mont_af(p));
 		bn128.fe_export((void*)&scalar_input[i*BN128_BITS/64], s);
@@ -148,15 +164,19 @@ int main(int argc, char **argv) {
 	OCL_CHECK(err,
 			err = q.enqueueMigrateMemObjects({buffer_point, buffer_scalar},
 					0 /* 0 means from host*/));
-
-	//Launch the Kernel
+    	struct timespec start_ts;
+	uint64_t compute_time;
+    	start_ts = timer_start();
+	//Launch the Kernel - start timing here
 	OCL_CHECK(err, err = q.enqueueTask(krnl));
+
 
 	//Copy Result from Device Global Memory to Host Local Memory
 	OCL_CHECK(err,
 			err = q.enqueueMigrateMemObjects({buffer_result},
 					CL_MIGRATE_MEM_OBJECT_HOST));
 	OCL_CHECK(err, err = q.finish());
+	compute_time = timer_end(start_ts);
 
 	//OPENCL HOST CODE AREA END
 
@@ -170,10 +190,10 @@ int main(int argc, char **argv) {
 	bn128.print_af(res_af);
 	
 	if (res_af == sw_result) {	
-		printf("Result matched expected result\n");
+		printf("\n\nHURRAH - Result matched expected result, took %luns for %lu input points, %f op/s.\n\n", compute_time, num_in, (1e9*num_in)/compute_time);
 		return EXIT_SUCCESS;
 	} else {
-		printf("ERROR - Result did not match\n");
+		printf("\n\nERROR - Result did not match\n\n");
 		return EXIT_FAILURE;
 	}
 		

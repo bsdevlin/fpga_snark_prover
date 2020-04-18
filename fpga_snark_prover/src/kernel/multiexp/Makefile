@@ -1,7 +1,7 @@
 .PHONY: help
 
 help::
-	$(ECHO) "Makefile Usage, default TARGET is emulation (hw_emu):"
+	$(ECHO) "Makefile Usage, default TARGET is emulation (hw_emu). Make sure you have sourced [../../../../submodules/aws-fpga/vitis_setup.sh] :"
 	$(ECHO) "  make all TARGET=<hw_emu/hw>"
 	$(ECHO) "      Command to generate the design for specified Target and Shell and run the test program."
 	$(ECHO) ""
@@ -34,7 +34,8 @@ VPP := v++
 HOST_SRCS += $(xcl2_SRCS)
 HOST_SRCS += src/host.cpp ../shared/bn128.cpp
 HOST_INC := -I../shared/
-BINARY_CONTAINERS += $(BUILD_DIR)/$(KERNEL_NAME).xclbin
+KERNEL_XCL := $(BUILD_DIR)/$(KERNEL_NAME)_$(TARGET).xclbin
+BINARY_CONTAINERS += $(KERNEL_XCL)
 BINARY_CONTAINER_vadd_OBJS += bin/$(KERNEL_NAME).xo
 
 # Kernel compiler global settings
@@ -59,17 +60,22 @@ build: $(BINARY_CONTAINERS)
 all: build exe run
 
 # Building kernel
-$(BUILD_DIR)/$(KERNEL_NAME).xclbin: $(BINARY_CONTAINER_vadd_OBJS)
+$(BUILD_DIR)/$(KERNEL_NAME)_$(TARGET).xclbin: $(BINARY_CONTAINER_vadd_OBJS)
 	mkdir -p $(BUILD_DIR)
 	$(VPP) $(CLFLAGS) --temp_dir $(BUILD_DIR) -l $(LDCLFLAGS) -o'$@' $(+)
 
 # Building Host
 $(EXECUTABLE): $(HOST_SRCS)
-	mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $(HOST_INC) $(HOST_SRCS) -o '$(BUILD_DIR)/$@' $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $(HOST_INC) $(HOST_SRCS) -o 'bin/$@' $(LDFLAGS)
 
 # Running the program
-run: $(EXECUTABLE) $(BUILD_DIR)/$(KERNEL_NAME).xclbin
+run: $(EXECUTABLE) $(BINARY_CONTAINERS)
 ifeq ($(TARGET),hw_emu)
-	cd $(BUILD_DIR); XCL_EMULATION_MODE=hw_emu ./$(EXECUTABLE) $(KERNEL_NAME).xclbin
+	cd $(BUILD_DIR); XCL_EMULATION_MODE=hw_emu ../bin/$(EXECUTABLE) $(KERNEL_NAME)_$(TARGET).xclbin
 endif 
+
+clean:
+	rm -fr $(BUILD_DIR)/*hw_emu* bin/$(EXECUTABLE)
+
+cleanall: clean
+	rm -fr $(BUILD_DIR)
