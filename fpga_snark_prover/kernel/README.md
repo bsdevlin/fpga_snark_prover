@@ -5,18 +5,19 @@ Several kernels have been compiled from the RTL code that allows for easy inclus
 exercised depending on what functionality is needed.
 Each kernels operates on DRAM memory on the FPGA, which has 4 DDR banks of 16GB each. 
 Each kernel has been tested with the **hw_emu** and **hw** makefile targets. 
-The **hw_emu** target create a ``build_output/<kernel_name>_hw_emu.xclbin`` file and runs hardware simulation emulation.
-The **hw** target will build the ``build_output/<kernel_name>_hw.xclbin`` and ``build_output/<kernel_name>.awsxclbin`` file which is used to create an AFI for use on Amazon AWS F1 instances with real hardware.
+The **hw_emu** target create a ``out/<kernel_name>.xclbin`` file and runs hardware simulation which is useful for debugging, especially
+when enabling the gui to view the waveform while simulating or as a post-simulation result. 
+The **hw** target will build the ``out/<kernel_name>.xclbin`` and ``.awsxclbin`` file which is used to create an AFI for use on Amazon AWS F1 instances with real hardware.
 
 For more information please see [here](https://github.com/aws/aws-fpga/tree/master/Vitis).
 
 Each kernel folder contains the following files:
 
 ```
-src/host.cpp                   -- The top level host file that shows an example of running the kernel and performance measurements
+src/host.cpp                   -- The top level host file that that runs the kernel
 bin/<kernel_name>_kernel.xo    -- The binary kernel file that has been pre-compiled for linking into the application
+proj/create_project.tcl        -- The Vivado 2019.2 project creation file that can be used to re-create the project and create the kernel binary .xo file
 README.md                      -- Kernel specific readme
-Makefile                       -- Run "make all TARGET=<hw|hw_emu>" to build kernel and run tests
 ```
 
 ##  Kernel overview

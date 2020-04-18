@@ -5,7 +5,7 @@ fpga_snark_prover
 ## Folder structure
 
 ```
-kernel/ -- Files for compiling kernels and running using Amazon cloud FPGAs.
+proj/   -- Empty project directory that can be used when create Vivado projects for modifying the code or simulation.
 src/    -- Source files.
 ```
 
