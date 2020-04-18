@@ -1,7 +1,7 @@
 .PHONY: help
 
 help::
-	$(ECHO) "Makefile Usage, default TARGET is emulation (hw_emu). Make sure you have sourced [../../../../submodules/aws-fpga/vitis_setup.sh] :"
+	$(ECHO) "Makefile Usage, default TARGET is emulation (hw_emu). Make sure you have sourced [../../../submodules/aws-fpga/vitis_setup.sh] :"
 	$(ECHO) "  make all TARGET=<hw_emu/hw>"
 	$(ECHO) "      Command to generate the design for specified Target and Shell and run the test program."
 	$(ECHO) ""
@@ -20,7 +20,7 @@ TARGET := hw_emu
 HOST_ARCH := x86
 
 # Points to top directory of Git Vitis repository
-COMMON_REPO = ../../../../submodules/aws-fpga/Vitis/examples/xilinx/
+COMMON_REPO = ../../../submodules/aws-fpga/Vitis/examples/xilinx/
 PWD = $(shell readlink -f .)
 ABS_COMMON_REPO = $(shell readlink -f $(COMMON_REPO))
 
