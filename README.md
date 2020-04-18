@@ -8,9 +8,9 @@ This repo contains the results of an Ethereum grant into developing a FPGA SNARK
 
 The goal of this project is to accelerate zk-SNARK proof creation by offloading operations to a FPGA. The project deliverables are split into 3 main goals:
  * FPGA acceleration of bn128 curve arithmetic
-   - Implement base curve arithmetic in Montgomery form, coprocessor architecture
+   - Implement base curve arithmetic in Montgomery form
    - Implement G1 (Fp) & G2 (Fp2) point multiplication
-   - Implement architecture on AWS and show functionality with c++ API over PCIe
+   - Implement architecture on AWS and integrate with the Vitis flow
  * Multi exponentiation (multiexp) - implement G1_MULTIEXP and G2_MULTIEXP
    - Modify point multiplication architecture from #1 on FPGA utilizing some method to accelerate multiple parallel point multiplications (e.g. utilize window / NAF / pre calculation)
    - Implement G1_MULTIEXP
@@ -27,7 +27,7 @@ interfaced to user logic (look in ```fpga_snark_prover\src\kernel``` to see this
 ## Folder structure
 
 ```
-fpga_snark_prover   -- Files directly related to this project.
+fpga_snark_prover/  -- Files directly related to this project.
 ip_cores/           -- RTL ip cores for general use in this project.
 submodules/         -- Git submodules that reference other repositories.**
 ```
