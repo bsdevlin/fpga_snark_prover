@@ -117,9 +117,9 @@ package bn128_pkg;
     fe2_sub[1] = fe_sub(a[1], b[1]);
   endfunction
 
-  function fe_t fe_mul(fe_t a, b);
+  function fe_t fe_mul(fe_t a, b, input logic mont = (USE_MONT_MULT == "YES"));
     logic [$bits(fe_t)*2:0] m_;
-    if (USE_MONT_MULT == "YES")
+    if (mont)
       fe_mul = fe_mul_mont(a, b);
     else begin
       m_ = a * b;
@@ -474,14 +474,20 @@ package bn128_pkg;
     jb_from_mont.y = fe_from_mont(a.y);
     jb_from_mont.z = fe_from_mont(a.z);
   endfunction  
+  
+  function af_point_t af_from_mont(af_point_t a);
+    af_from_mont.x = fe_from_mont(a.x);
+    af_from_mont.y = fe_from_mont(a.y);
+  endfunction  
 
   // Functions for converting to affine, and printing
-  function af_point_t to_affine(jb_point_t p);
+  // Converting while in montgomery form will give errors.
+  function af_point_t to_affine(jb_point_t p, input logic mont = (USE_MONT_MULT == "YES"));
     fe_t z_;
-    z_ = fe_mul(p.z, p.z);
-    to_affine.x = fe_mul(p.x, fe_inv(z_));
-    z_ = fe_mul(z_, p.z);
-    to_affine.y = fe_mul(p.y, fe_inv(z_));
+    z_ = fe_mul(p.z, p.z, mont);
+    to_affine.x = fe_mul(p.x, fe_inv(z_), mont);
+    z_ = fe_mul(z_, p.z, mont);
+    to_affine.y = fe_mul(p.y, fe_inv(z_), mont);
   endfunction
 
   task print_jb_point(jb_point_t p);

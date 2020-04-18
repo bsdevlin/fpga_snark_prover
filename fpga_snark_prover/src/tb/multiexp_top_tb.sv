@@ -101,7 +101,7 @@ begin
     $display("Key 0x%x", in_s[i]);
   end
 
-  expected = to_affine(jb_from_mont(multiexp_batch(in_s, in_p)));
+  expected = to_affine(jb_from_mont(multiexp_batch(in_s, in_p)), 0);
 
   start_time = $time;
   fork
@@ -121,8 +121,8 @@ begin
   
   $display("test0 finished in %d clock cycles", (finish_time-start_time)/CLK_PERIOD);
   
-  assert(to_affine(jb_from_mont(out)) == expected) else begin
-    $display("Was:      0x%0x", to_affine(jb_from_mont(out)));
+  assert(to_affine(jb_from_mont(out), 0) == expected) else begin
+    $display("Was:      0x%0x", to_affine(jb_from_mont(out)), 0);
     $fatal(1, "ERROR: Output did not match");
   end
 
