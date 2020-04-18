@@ -72,6 +72,8 @@ $(EXECUTABLE): $(HOST_SRCS)
 run: $(EXECUTABLE) $(BINARY_CONTAINERS)
 ifeq ($(TARGET),hw_emu)
 	cd $(BUILD_DIR); XCL_EMULATION_MODE=hw_emu ../bin/$(EXECUTABLE) $(KERNEL_NAME)_$(TARGET).xclbin
+else
+	cd $(BUILD_DIR); ../bin/$(EXECUTABLE) $(KERNEL_NAME)_$(TARGET).xclbin
 endif 
 
 clean:
