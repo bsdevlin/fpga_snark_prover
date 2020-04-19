@@ -1,5 +1,5 @@
 /*
-  Testbench for the multiexp core.
+  Testbench for the G2 multiexp core.
 
   Copyright (C) 2019  Benjamin Devlin
 
@@ -18,7 +18,7 @@
 */
 `timescale 1ps/1ps
 
-module multiexp_core_tb ();
+module multiexp_fp2_core_tb ();
 import bn128_pkg::*;
 import common_pkg::*;
 
@@ -27,23 +27,23 @@ localparam CLK_PERIOD = 100;
 localparam NUM_IN = 4;
 localparam DAT_BITS = $bits(fe_t);
 localparam KEY_BITS = $bits(P);
-localparam CTL_BITS = 8;
+localparam CTL_BITS = 9;
 
 logic clk, rst;
 
-jb_point_t res_o;
+fp2_jb_point_t res_o;
 always_comb res_o = o_pnt_if.dat;
 
 if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS)) mul_o_if (clk);
 if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS)) mul_i_if (clk);
 
-localparam DAT_IN0 = $bits(fe_t) + $bits(jb_point_t);
-localparam DAT_IN1 = $bits(jb_point_t);
+localparam DAT_IN0 = $bits(fe_t) + $bits(fp2_jb_point_t);
+localparam DAT_IN1 = $bits(fp2_jb_point_t);
 
 if_axi_stream #(.DAT_BYTS((DAT_IN0+7)/8), .CTL_BITS(CTL_BITS)) i_pnt_scl_if (clk);
 if_axi_stream #(.DAT_BYTS((DAT_IN1+7)/8), .CTL_BITS(CTL_BITS)) o_pnt_if (clk);
 
-jb_point_t in_p [];
+fp2_jb_point_t in_p [];
 fe_t in_s [];
 
 logic [63:0] num_in;
@@ -60,9 +60,11 @@ initial begin
   forever #(CLK_PERIOD/2) clk = ~clk;
 end
 
-multiexp_core #(
+multiexp_fp2_core #(
   .FP_TYPE  ( jb_point_t ),
   .FE_TYPE  ( fe_t       ),
+  .FP2_TYPE ( fp2_jb_point_t ),
+  .FE2_TYPE ( fe2_t      ),  
   .KEY_BITS ( KEY_BITS   ),
   .CTL_BITS ( CTL_BITS   ),
   .CONST_3  ( CONST_3    ),
@@ -70,7 +72,7 @@ multiexp_core #(
   .CONST_8  ( CONST_8    ),
   .P        ( P          )
 )
-multiexp_core (
+multiexp_fp2_core (
   .i_clk ( clk ),
   .i_rst ( rst ),
   .i_pnt_scl_if ( i_pnt_scl_if ),
@@ -102,8 +104,8 @@ task test0();
 begin
   integer signed get_len;
   logic [common_pkg::MAX_SIM_BYTS*8-1:0] get_dat;
-  jb_point_t out;
-  af_point_t expected;
+  fp2_jb_point_t out;
+  fp2_af_point_t expected;
   cnt = DAT_BITS-1;
   
   in_p = new[NUM_IN];
@@ -113,14 +115,14 @@ begin
   $display("Running test0...");
 
   for (int i = 0; i < NUM_IN; i++) begin
-    in_p[i] = jb_to_mont(point_mult(random_vector((DAT_BITS+7)/8) % P, G1_JB));
+    in_p[i] = fp2_point_mult(random_vector((DAT_BITS+7)/8) % P, fp2_jb_to_mont(G2_JB));
     $display("Input point #%d", i);
-    print_jb_point(in_p[i]);
+    print_fp2_jb_point(in_p[i]);
     in_s[i] = random_vector((DAT_BITS+7)/8) % P;
     $display("Key 0x%x", in_s[i]);
   end
 
-  expected = to_affine(multiexp_batch(in_s, in_p));
+  expected = fp2_to_affine(fp2_jb_from_mont(fp2_multiexp_batch(in_s, in_p)), 0);
 
   fork
     for(int j = 0; j < DAT_BITS; j++) begin
@@ -136,9 +138,9 @@ begin
 
   out = get_dat;
 
-  assert(to_affine(out) == expected) else begin
+  assert(fp2_to_affine(fp2_jb_from_mont(out), 0) == expected) else begin
     $display("Expected: 0x%0x", expected);
-    $display("Was:      0x%0x", to_affine(jb_from_mont(out)));
+    $display("Was:      0x%0x", fp2_to_affine(fp2_jb_from_mont(out)), 0);
     $fatal(1, "ERROR: Output did not match");
   end
 

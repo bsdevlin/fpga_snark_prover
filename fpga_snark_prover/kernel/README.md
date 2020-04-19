@@ -35,9 +35,9 @@ Calculates the G1 multi-exponentiation.
 | # | Argument | Type | Notes |
 | --- | --- | --- | --- |
 | 0 | num_in  | uint64_t  | The number of points/scalars to operate on.   |
-| 1 | point_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of input G1 points in affine coordinates. |
+| 1 | point_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of input G1 points in Montgomery form affine coordinates. |
 | 2 | scalar_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of 256 bit scalars. |
-| 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G1 point in jacobian coordinates. |
+| 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G1 Montgomery form jacobian point coordinates. |
 
 ###  Multiexp
 Calculates the G2 or G1 multi-exponentiation. 

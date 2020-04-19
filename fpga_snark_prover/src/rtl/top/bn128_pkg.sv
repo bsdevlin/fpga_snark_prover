@@ -127,9 +127,9 @@ package bn128_pkg;
     end
   endfunction
   
-  function fe2_t fe2_mul(fe2_t a, b);
-    fe2_mul[0] = fe_sub(fe_mul(a[0], b[0]), fe_mul(a[1], b[1]));
-    fe2_mul[1] = fe_add(fe_mul(a[0], b[1]), fe_mul(a[1], b[0]));
+  function fe2_t fe2_mul(fe2_t a, b, input logic mont = (USE_MONT_MULT == "YES"));
+    fe2_mul[0] = fe_sub(fe_mul(a[0], b[0], mont), fe_mul(a[1], b[1], mont));
+    fe2_mul[1] = fe_add(fe_mul(a[0], b[1], mont), fe_mul(a[1], b[0], mont));
   endfunction
 
    // Inversion using extended euclidean algorithm
@@ -495,6 +495,12 @@ package bn128_pkg;
     jb_from_mont.z = fe_from_mont(a.z);
   endfunction  
   
+  function fp2_jb_point_t fp2_jb_from_mont(jb_point_t a);
+    fp2_jb_from_mont.x = fe2_from_mont(a.x);
+    fp2_jb_from_mont.y = fe2_from_mont(a.y);
+    fp2_jb_from_mont.z = fe2_from_mont(a.z);
+  endfunction  
+  
   function af_point_t af_from_mont(af_point_t a);
     af_from_mont.x = fe_from_mont(a.x);
     af_from_mont.y = fe_from_mont(a.y);
@@ -510,12 +516,12 @@ package bn128_pkg;
     to_affine.y = fe_mul(p.y, fe_inv(z_), mont);
   endfunction
   
-   function fp2_af_point_t fp2_to_affine(fp2_jb_point_t p);
+   function fp2_af_point_t fp2_to_affine(fp2_jb_point_t p, input logic mont = (USE_MONT_MULT == "YES"));
      fe2_t z_;
-     z_ = fe2_mul(p.z, p.z);
-     fp2_to_affine.x = fe2_mul(p.x, fe2_inv(z_));
-     z_ = fe2_mul(z_, p.z);
-     fp2_to_affine.y = fe2_mul(p.y, fe2_inv(z_));
+     z_ = fe2_mul(p.z, p.z, mont);
+     fp2_to_affine.x = fe2_mul(p.x, fe2_inv(z_), mont);
+     z_ = fe2_mul(z_, p.z, mont);
+     fp2_to_affine.y = fe2_mul(p.y, fe2_inv(z_), mont);
    endfunction  
 
   task print_jb_point(jb_point_t p);
