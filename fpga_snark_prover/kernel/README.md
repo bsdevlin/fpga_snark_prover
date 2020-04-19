@@ -3,7 +3,8 @@ Kernels (RTL)
 
 Several kernels have been compiled from the RTL code that allows for easy inclusion into a host.cpp file. Multiple kernels can be linked and 
 exercised depending on what functionality is needed.
-Each kernels operates on DRAM memory on the FPGA, which has 4 DDR banks of 16GB each. 
+Each kernels operates on DRAM memory on the FPGA, which has 4 DDR banks of 16GB each. When building the kernel will automatically get assigned to a 16GB DDR bank and only able to access that bank - to change this you need to uncomment the ``CLFLAGS += --sp ...`` lines.
+
 Each kernel has a **hw_emu** and **hw** makefile targets. 
 The **hw_emu** target create a ``build_output/<kernel_name>.xclbin`` file and runs hardware simulation which will verify the design against the host.cpp. This takes around 5min to build.
 The **hw** target will build the ``build_output/<kernel_name>.xclbin`` and ``.awsxclbin`` file which is used to create an AFI for use on Amazon AWS F1 instances with real hardware. This takes around 4 hours to build.
@@ -24,9 +25,8 @@ README.md                      -- Kernel specific readme
 1. ``source fpga_snark_prover\submodules\aws-fpga\vitis_setup.sh``.
 2. Go into one of the kernel directories, and run hardware emulation ``make all TARGET=hw_emu``.
 3. Build the .xclbinmage that will be loaded onto the FPGA ``make all TARGET=hw``.
-4. Build the .awsxclbin and AFI. ``make to_f1 S3_BUCKET=<S3 name of your bucket>`` This will generate a tar 'to_f1.tar.gz' that can be copied onto a F1 instance and run on a real FPGA.
+4. Build the .awsxclbin and AFI. ``make to_f1 S3_BUCKET=<S3 name of your bucket>``. This will generate a tar 'to_f1.tar.gz' that can be copied onto a F1 instance and run on a real FPGA.
 
-When building the kernel will automatically get assigned to a 16GB DDR bank and only able to access that bank - to change this you need to uncomment the ``CLFLAGS += --sp ...`` lines.
 
 ##  Kernel overview ##
 ###  Multiexp ###

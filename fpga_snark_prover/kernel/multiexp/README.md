@@ -1,6 +1,9 @@
 Multi-exponentiation in G1 
 ======================
 
+Each core operates on a subset of the inputs (Mongomery form Jacobian coordinates and scalar pairs), and the inputs are continiously read in a streaming loop.
+If the kernel has been compiled with 16 cores, then each core will get 1/16 of the total inputs. After each core has its final result, they are collapsed into each other log2 - so in the case of 16 cores there would be another 4 stages of point addition done before the final Montgomery form Jacobian coordinate point is streamed back to host.
+
 ## Kernel base performance and area utilization
 The kernel when synthesized for a single core and single arithmetic unit  are shown below (bracket values are % of a VU9P AWS FPGA).
 Other resource types (BRAMs, LUTRAMs, etc) are not shown because their usage is very low. This includes glue logic of the kernel, and won't include the other top level logic AWS inserts, so is just a rough guide.
