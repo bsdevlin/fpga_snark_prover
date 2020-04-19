@@ -1,6 +1,4 @@
 /*
-  Testbench for the multiexp core.
-
   Copyright (C) 2019  Benjamin Devlin
 
   This program is free software: you can redistribute it and/or modify
@@ -18,7 +16,7 @@
 */
 `timescale 1ps/1ps
 
-module ec_fpn_add_tb ();
+module ec_fpn_dbl_tb ();
 import bn128_pkg::*;
 import common_pkg::*;
 
@@ -32,9 +30,9 @@ logic clk, rst;
 
 localparam DAT_IN2 = $bits(fp2_jb_point_t);
 
-fp2_jb_point_t i_p1, i_p2, o_p;
+fp2_jb_point_t i_p, o_p;
 
-if_axi_stream #(.DAT_BYTS((2*DAT_IN2+7)/8), .CTL_BITS(CTL_BITS)) i_pnt_if (clk);
+if_axi_stream #(.DAT_BYTS((DAT_IN2+7)/8), .CTL_BITS(CTL_BITS)) i_pnt_if (clk);
 if_axi_stream #(.DAT_BYTS((DAT_IN2+7)/8), .CTL_BITS(CTL_BITS)) o_pnt_if (clk);
 
 if_axi_stream #(.DAT_BITS(DAT_BITS0), .CTL_BITS(CTL_BITS))   add_if_i [2:0] (clk);
@@ -47,8 +45,7 @@ if_axi_stream #(.DAT_BITS(DAT_BITS0), .CTL_BITS(CTL_BITS))   mul_if_i (clk);
 if_axi_stream #(.DAT_BITS(2*DAT_BITS0), .CTL_BITS(CTL_BITS)) mul_if_o (clk);
 
 always_comb begin
-  i_p1 = i_pnt_if.dat[0 +: DAT_IN2];
-  i_p2 = i_pnt_if.dat[DAT_IN2 +: DAT_IN2];
+  i_p = i_pnt_if.dat[0 +: DAT_IN2];
   o_pnt_if.dat = o_p;
   o_pnt_if.sop = 1;
   o_pnt_if.eop = 1;
@@ -64,16 +61,18 @@ initial begin
   forever #(CLK_PERIOD/2) clk = ~clk;
 end
 
-ec_fpn_add #(
+ec_fpn_dbl #(
   .FP_TYPE ( fp2_jb_point_t ),
   .FE_TYPE ( fe2_t          ),
-  .FE_TYPE_ARITH ( fe_t ) 
+  .FE_TYPE_ARITH ( fe_t ),
+  .CONST_3  ( CONST_3    ),
+  .CONST_4  ( CONST_4    ),
+  .CONST_8  ( CONST_8    )
 )
-ec_fpn_add (
+ec_fpn_dbl (
   .i_clk ( clk ), 
   .i_rst ( rst ),
-  .i_p1 ( i_p1 ),
-  .i_p2 ( i_p2 ),
+  .i_p ( i_p ),
   .i_val ( i_pnt_if.val ),
   .o_rdy ( i_pnt_if.rdy ),
   .o_p ( o_p ),
@@ -186,22 +185,20 @@ task test0();
 begin
   integer signed get_len;
   logic [common_pkg::MAX_SIM_BYTS*8-1:0] get_dat;
-  fp2_jb_point_t out, a, b;
+  fp2_jb_point_t out, a;
   fp2_jb_point_t expected;
   
   $display("Running test0...");
 
-  for (int i = 0; i < 1000; i++) begin
+  for (int i = 0; i < 100; i++) begin
     a = fp2_point_mult(random_vector((DAT_BITS+7)/8) % P, fp2_jb_to_mont(G2_JB));
-    b = fp2_point_mult(random_vector((DAT_BITS+7)/8) % P, fp2_jb_to_mont(G2_JB));
-    $display("Input points #%d", i);
+    $display("Input point #%d:", i);
     print_fp2_jb_point(a);
-    print_fp2_jb_point(b);
     
-    expected = add_fp2_jb_point(a, b);
+    expected = dbl_fp2_jb_point(a);
     
     fork
-      i_pnt_if.put_stream({b, a}, (2*DAT_IN2+7)/8, 0);
+      i_pnt_if.put_stream(a, (DAT_IN2+7)/8, 0);
       o_pnt_if.get_stream(get_dat, get_len, 0);
     join
     

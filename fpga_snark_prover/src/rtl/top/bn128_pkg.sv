@@ -84,8 +84,8 @@ package bn128_pkg;
   af_point_t G1_AF = '{x:G1X, y:G1Y};
   jb_point_t G1_JB = '{x:G1X, y:G1Y, z:256'd1};
 
-  fe2_t G2X = {'d10857046999023057135944570762232829481370756359578518086990519993285655852781, 'd11559732032986387107991004021392285783925812861821192530917403151452391805634};
-  fe2_t G2Y = {'d8495653923123431417604973247489272438418190587263600148770280649306958101930, 'd4082367875863433681332203403145435568316851327593401208105741076214120093531};
+  fe2_t G2X = {256'd10857046999023057135944570762232829481370756359578518086990519993285655852781, 256'd11559732032986387107991004021392285783925812861821192530917403151452391805634};
+  fe2_t G2Y = {256'd8495653923123431417604973247489272438418190587263600148770280649306958101930, 256'd4082367875863433681332203403145435568316851327593401208105741076214120093531};
   fe2_t FE2_ONE = {256'd0, 256'd1};
 
   fp2_af_point_t G2_AF = '{x:G2X, y:G2Y};
@@ -111,7 +111,7 @@ package bn128_pkg;
     b_ = b;
     fe_sub = b_ > a_ ? a_- b_ + P : a_ - b_;
   endfunction
-
+  
   function fe2_t fe2_sub(fe2_t a, b);
     fe2_sub[0] = fe_sub(a[0], b[0]);
     fe2_sub[1] = fe_sub(a[1], b[1]);
@@ -126,7 +126,7 @@ package bn128_pkg;
       fe_mul = m_ % P;
     end
   endfunction
-
+  
   function fe2_t fe2_mul(fe2_t a, b);
     fe2_mul[0] = fe_sub(fe_mul(a[0], b[0]), fe_mul(a[1], b[1]));
     fe2_mul[1] = fe_add(fe_mul(a[0], b[1]), fe_mul(a[1], b[0]));
@@ -245,7 +245,7 @@ package bn128_pkg;
     X = fe2_mul(D, D);
     E = fe2_add(B, B);
     X = fe2_sub(X, E);
-    Y = fe2_mul(D, fe_sub(B, X));
+    Y = fe2_mul(D, fe2_sub(B, X));
     Y = fe2_sub(Y, C);
     Z = fe2_mul(fe2_add(I_Y, I_Y), I_Z);
     dbl_fp2_jb_point.x = X;
@@ -297,6 +297,20 @@ package bn128_pkg;
     end
     return result;
   endfunction
+  
+  function fp2_jb_point_t fp2_point_mult(input logic [DAT_BITS-1:0] c, fp2_jb_point_t p);
+    fp2_jb_point_t result, addend;
+    result = 0;
+    addend = p;
+    while (c > 0) begin
+      if (c[0]) begin
+        result = add_fp2_jb_point(result, addend);
+      end
+      addend = dbl_fp2_jb_point(addend);
+      c = c >> 1;
+    end
+    return result;
+  endfunction  
 
   // Function for G1 multiexp, takes an array of scalars and points
   function jb_point_t multiexp(input logic [DAT_BITS-1:0] s [], jb_point_t p []);
@@ -459,6 +473,12 @@ package bn128_pkg;
     jb_to_mont.y = fe_to_mont(a.y);
     jb_to_mont.z = fe_to_mont(a.z);
   endfunction
+  
+  function fp2_jb_point_t fp2_jb_to_mont(fp2_jb_point_t a);
+    fp2_jb_to_mont.x = fe2_to_mont(a.x);
+    fp2_jb_to_mont.y = fe2_to_mont(a.y);
+    fp2_jb_to_mont.z = fe2_to_mont(a.z);
+  endfunction  
 
   function fe_t fe_from_mont(fe_t a);
     fe_from_mont = fe_mul_mont(a, 256'd1);
@@ -489,6 +509,14 @@ package bn128_pkg;
     z_ = fe_mul(z_, p.z, mont);
     to_affine.y = fe_mul(p.y, fe_inv(z_), mont);
   endfunction
+  
+   function fp2_af_point_t fp2_to_affine(fp2_jb_point_t p);
+     fe2_t z_;
+     z_ = fe2_mul(p.z, p.z);
+     fp2_to_affine.x = fe2_mul(p.x, fe2_inv(z_));
+     z_ = fe2_mul(z_, p.z);
+     fp2_to_affine.y = fe2_mul(p.y, fe2_inv(z_));
+   endfunction  
 
   task print_jb_point(jb_point_t p);
     $display("x:0x%h", p.x);

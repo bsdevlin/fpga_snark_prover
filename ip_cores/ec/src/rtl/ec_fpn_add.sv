@@ -97,7 +97,7 @@ localparam ARITH_BITS = $bits(FE_TYPE_ARITH);
 localparam DIV = $bits(FE_TYPE)/ARITH_BITS;
 localparam DIV_LOG2 = DIV == 1 ? 1 : $clog2(DIV);
 
-logic [DIV_LOG2-1:0] add_o_cnt, sub_o_cnt, add_i_cnt, sub_i_cnt;
+logic [DIV_LOG2-1:0] add_o_cnt, sub_o_cnt, add_i_cnt, sub_i_cnt, mul_i_cnt, mul_o_cnt;
 logic mul_en, add_en, sub_en;
 logic [5:0] nxt_mul, nxt_add, nxt_sub;
 
@@ -112,9 +112,9 @@ always_ff @ (posedge i_clk) begin
     o_val <= 0;
     o_rdy <= 0;
     o_p <= 0;
-    o_mul_if.copy_if(0, 0, 1, 1, 0, 0, 0);
-    o_add_if.copy_if(0, 0, 1, 1, 0, 0, 0);
-    o_sub_if.copy_if(0, 0, 1, 1, 0, 0, 0);
+    o_mul_if.reset_source();
+    o_add_if.reset_source();
+    o_sub_if.reset_source();
     i_add_if.rdy <= 0;
     i_mul_if.rdy <= 0;
     i_sub_if.rdy <= 0;
@@ -128,10 +128,14 @@ always_ff @ (posedge i_clk) begin
     B <= 0;
     C <= 0;
     D <= 0;
-    {add_o_cnt, sub_o_cnt, add_i_cnt, sub_i_cnt} <= 0;
+    {add_o_cnt, sub_o_cnt, add_i_cnt, sub_i_cnt, mul_i_cnt, mul_o_cnt} <= 0;
     {mul_en, add_en, sub_en} <= 0;
     {nxt_mul, nxt_add, nxt_sub} <= 0;
   end else begin
+    
+    i_mul_if.rdy <= 1;
+    i_add_if.rdy <= 1;
+    i_sub_if.rdy <= 1;
 
     if (o_mul_if.rdy) o_mul_if.val <= 0;
     if (o_add_if.rdy) o_add_if.val <= 0;
@@ -147,9 +151,6 @@ always_ff @ (posedge i_clk) begin
         eq_val <= 0;
         eq_wait <= 0;
         o_err <= 0;
-        i_mul_if.rdy <= 1;
-        i_add_if.rdy <= 1;
-        i_sub_if.rdy <= 1;
         i_p1_l <= i_p1;
         i_p2_l <= i_p2;
         A <= 0;
@@ -158,6 +159,7 @@ always_ff @ (posedge i_clk) begin
         D <= 0;
         {mul_en, add_en, sub_en} <= 0;
         {nxt_mul, nxt_add, nxt_sub} <= 0;
+        o_val <= 0;
         if (i_val && o_rdy) begin
           state <= START;
           o_rdy <= 0;
@@ -194,49 +196,59 @@ always_ff @ (posedge i_clk) begin
 
         // Check any results from multiplier
         if (i_mul_if.val && i_mul_if.rdy) begin
-          eq_val[i_mul_if.ctl[5:0]] <= 1;
+          mul_i_cnt <= mul_i_cnt + 1;
+          if (mul_i_cnt == DIV-1) begin
+            eq_val[i_mul_if.ctl[5:0]] <= 1;
+            mul_i_cnt <= 0;
+          end
           case(i_mul_if.ctl[5:0]) inside
-            0: A <= i_mul_if.dat;
-            1: i_p1_l.x <= i_mul_if.dat;
-            2: C <= i_mul_if.dat;
-            3: i_p2_l.x <= i_mul_if.dat;
-            4: A <= i_mul_if.dat;
-            5: A <= i_mul_if.dat;
-            6: C <= i_mul_if.dat;
-            7: C <= i_mul_if.dat;
-            10: o_p.x <= i_mul_if.dat;
-            11: D <= i_mul_if.dat;
-            12: i_p2_l.x <= i_mul_if.dat;
-            14: i_p1_l.x <= i_mul_if.dat;
-            19: o_p.y <= i_mul_if.dat;
-            20: i_p2_l.x <= i_mul_if.dat;
-            22: o_p.z <= i_mul_if.dat;
-            23: o_p.z <= i_mul_if.dat;
+            0: A[mul_i_cnt] <= i_mul_if.dat;
+            1: i_p1_l.x[mul_i_cnt] <= i_mul_if.dat;
+            2: C[mul_i_cnt] <= i_mul_if.dat;
+            3: i_p2_l.x[mul_i_cnt] <= i_mul_if.dat;
+            4: A[mul_i_cnt] <= i_mul_if.dat;
+            5: A[mul_i_cnt] <= i_mul_if.dat;
+            6: C[mul_i_cnt] <= i_mul_if.dat;
+            7: C[mul_i_cnt] <= i_mul_if.dat;
+            10: o_p.x[mul_i_cnt] <= i_mul_if.dat;
+            11: D[mul_i_cnt] <= i_mul_if.dat;
+            12: i_p2_l.x[mul_i_cnt] <= i_mul_if.dat;
+            14: i_p1_l.x[mul_i_cnt] <= i_mul_if.dat;
+            19: o_p.y[mul_i_cnt] <= i_mul_if.dat;
+            20: i_p2_l.x[mul_i_cnt] <= i_mul_if.dat;
+            22: o_p.z[mul_i_cnt] <= i_mul_if.dat;
+            23: o_p.z[mul_i_cnt] <= i_mul_if.dat;
             default: o_err <= 1;
           endcase
         end
 
         // Check any results from adder
         if (i_add_if.val && i_add_if.rdy) begin
-          eq_val[i_add_if.ctl[5:0]] <= &add_i_cnt;
           add_i_cnt <= add_i_cnt + 1;
+          if (add_i_cnt == DIV-1) begin
+            eq_val[i_add_if.ctl[5:0]] <= 1;
+            add_i_cnt <= 0;
+          end
           case(i_add_if.ctl[5:0]) inside
-            16: i_p1_l.x[add_i_cnt*ARITH_BITS +: ARITH_BITS] <= i_add_if.dat;
+            16: i_p1_l.x[add_i_cnt] <= i_add_if.dat;
             default: o_err <= 1;
           endcase
         end
 
         // Check any results from subtractor
         if (i_sub_if.val && i_sub_if.rdy) begin
-          eq_val[i_sub_if.ctl[5:0]] <= &sub_i_cnt;
           sub_i_cnt <= sub_i_cnt + 1;
+          if (sub_i_cnt == DIV-1) begin
+            eq_val[i_sub_if.ctl[5:0]] <= 1;
+            sub_i_cnt <= 0;
+          end
           case(i_sub_if.ctl[5:0]) inside
-            8: B[sub_i_cnt*ARITH_BITS +: ARITH_BITS] <= i_sub_if.dat;
-            9: i_p2_l.y[sub_i_cnt*ARITH_BITS +: ARITH_BITS] <= i_sub_if.dat;
-            13: o_p.x[sub_i_cnt*ARITH_BITS +: ARITH_BITS] <= i_sub_if.dat;
-            17: o_p.x[sub_i_cnt*ARITH_BITS +: ARITH_BITS] <= i_sub_if.dat;
-            18: o_p.y[sub_i_cnt*ARITH_BITS +: ARITH_BITS] <= i_sub_if.dat;
-            21: o_p.y[sub_i_cnt*ARITH_BITS +: ARITH_BITS] <= i_sub_if.dat;
+            8: B[sub_i_cnt] <= i_sub_if.dat;
+            9: i_p2_l.y[sub_i_cnt] <= i_sub_if.dat;
+            13: o_p.x[sub_i_cnt] <= i_sub_if.dat;
+            17: o_p.x[sub_i_cnt] <= i_sub_if.dat;
+            18: o_p.y[sub_i_cnt] <= i_sub_if.dat;
+            21: o_p.y[sub_i_cnt] <= i_sub_if.dat;
             default: o_err <= 1;
           endcase
         end
@@ -314,9 +326,11 @@ end
 task subtraction(input int unsigned ctl, input FE_TYPE a, b);
   if (~o_sub_if.val || (o_sub_if.val && o_sub_if.rdy)) begin
     o_sub_if.val <= 1;
-    o_sub_if.dat[0 +: $bits(FE_TYPE)] <= a[sub_o_cnt*ARITH_BITS +: ARITH_BITS];
-    o_sub_if.dat[$bits(FE_TYPE) +: $bits(FE_TYPE)] <= b[sub_o_cnt*ARITH_BITS +: ARITH_BITS];
+    o_sub_if.dat[0 +: ARITH_BITS] <= a[sub_o_cnt];
+    o_sub_if.dat[ARITH_BITS +: ARITH_BITS] <= b[sub_o_cnt];
     o_sub_if.ctl[5:0] <= ctl;
+    o_sub_if.sop <= sub_o_cnt == 0;
+    o_sub_if.eop <= sub_o_cnt == DIV-1;  
     eq_wait[ctl] <= 1;
     sub_o_cnt <= sub_o_cnt + 1;
     if(sub_o_cnt == DIV-1) begin 
@@ -330,9 +344,11 @@ endtask
 task addition(input int unsigned ctl, input FE_TYPE a, b);
   if (~o_add_if.val || (o_add_if.val && o_add_if.rdy)) begin
     o_add_if.val <= 1;
-    o_add_if.dat[0 +: $bits(FE_TYPE)] <= a[add_o_cnt*ARITH_BITS +: ARITH_BITS];
-    o_add_if.dat[$bits(FE_TYPE) +: $bits(FE_TYPE)] <= b[add_o_cnt*ARITH_BITS +: ARITH_BITS];
+    o_add_if.dat[0 +: ARITH_BITS] <= a[add_o_cnt];
+    o_add_if.dat[ARITH_BITS +: ARITH_BITS] <= b[add_o_cnt];
     o_add_if.ctl[5:0] <= ctl;
+    o_add_if.sop <= add_o_cnt == 0;
+    o_add_if.eop <= add_o_cnt == DIV-1;
     eq_wait[ctl] <= 1;
     add_o_cnt <= add_o_cnt + 1;
     if(add_o_cnt == DIV-1) begin
@@ -346,11 +362,17 @@ endtask
 task multiply(input int unsigned ctl, input FE_TYPE a, b);
   if (~o_mul_if.val || (o_mul_if.val && o_mul_if.rdy)) begin
     o_mul_if.val <= 1;
-    o_mul_if.dat[0 +: $bits(FE_TYPE)] <= a;
-    o_mul_if.dat[$bits(FE_TYPE) +: $bits(FE_TYPE)] <= b;
+    o_mul_if.dat[0 +: ARITH_BITS] <= a[mul_o_cnt];
+    o_mul_if.dat[ARITH_BITS +: ARITH_BITS] <= b[mul_o_cnt];
     o_mul_if.ctl[5:0] <= ctl;
+    o_mul_if.sop <= mul_o_cnt == 0;
+    o_mul_if.eop <= mul_o_cnt == DIV-1;
     eq_wait[ctl] <= 1;
-    get_next_mul();
+    mul_o_cnt <= mul_o_cnt + 1;
+    if(mul_o_cnt == DIV-1) begin
+      get_next_mul();
+      mul_o_cnt <= 0;
+    end
   end
 endtask
 

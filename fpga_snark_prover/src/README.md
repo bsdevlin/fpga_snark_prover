@@ -1,7 +1,7 @@
 Source files
 ======================
 
-## Folder structure
+## Folder structure ##
 
 ```
 rtl       -- Source RTL files used in this project.
