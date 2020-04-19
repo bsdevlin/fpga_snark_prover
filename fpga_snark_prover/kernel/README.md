@@ -26,7 +26,7 @@ README.md                      -- Kernel specific readme
 3. Build the .xclbinmage that will be loaded onto the FPGA ``make all TARGET=hw``.
 4. Build the .awsxclbin and AFI. ``make to_f1 S3_BUCKET=<S3 name of your bucket>`` This will generate a tar 'to_f1.tar.gz' that can be copied onto a F1 instance and run on a real FPGA.
 
-In one of the kernel directories, 
+When building the kernel will automatically get assigned to a 16GB DDR bank and only able to access that bank - to change this you need to uncomment the ``CLFLAGS += --sp ...`` lines.
 
 ##  Kernel overview ##
 ###  Multiexp ###
