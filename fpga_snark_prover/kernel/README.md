@@ -4,9 +4,9 @@ Kernels (RTL)
 Several kernels have been compiled from the RTL code that allows for easy inclusion into a host.cpp file. Multiple kernels can be linked and 
 exercised depending on what functionality is needed.
 Each kernels operates on DRAM memory on the FPGA, which has 4 DDR banks of 16GB each. 
-Each kernel has been tested with the **hw_emu** and **hw** makefile targets. 
-The **hw_emu** target create a ``out/<kernel_name>.xclbin`` file and runs hardware simulation which will verify the design against the host.cpp. This takes around 5min to build.
-The **hw** target will build the ``out/<kernel_name>.xclbin`` and ``.awsxclbin`` file which is used to create an AFI for use on Amazon AWS F1 instances with real hardware. This takes around 4 hours to build.
+Each kernel has a **hw_emu** and **hw** makefile targets. 
+The **hw_emu** target create a ``build_output/<kernel_name>.xclbin`` file and runs hardware simulation which will verify the design against the host.cpp. This takes around 5min to build.
+The **hw** target will build the ``build_output/<kernel_name>.xclbin`` and ``.awsxclbin`` file which is used to create an AFI for use on Amazon AWS F1 instances with real hardware. This takes around 4 hours to build.
 
 For more information please see [here](https://github.com/aws/aws-fpga/tree/master/Vitis).
 
@@ -19,8 +19,17 @@ proj/create_project.tcl        -- The Vivado 2019.2 project creation file that c
 README.md                      -- Kernel specific readme
 ```
 
-##  Kernel overview
-###  Multiexp
+## To run ##
+
+1. ``source fpga_snark_prover\submodules\aws-fpga\vitis_setup.sh``.
+2. Go into one of the kernel directories, and run hardware emulation ``make all TARGET=hw_emu``.
+3. Build the .xclbinmage that will be loaded onto the FPGA ``make all TARGET=hw``.
+4. Build the .awsxclbin and AFI. ``make to_f1 S3_BUCKET=<S3 name of your bucket>`` This will generate a tar 'to_f1.tar.gz' that can be copied onto a F1 instance and run on a real FPGA.
+
+In one of the kernel directories, 
+
+##  Kernel overview ##
+###  Multiexp ###
 Calculates the G1 multi-exponentiation. 
 
 | # | Argument | Type | Notes |
