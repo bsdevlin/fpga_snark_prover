@@ -54,13 +54,13 @@ long timer_end(struct timespec start_time){
 }
 
 int main(int argc, char **argv) {
-	if (argc != 2) {
-		std::cout << "Usage: " << argv[0] << " <XCLBIN File>" << std::endl;
+	if (argc != 3) {
+		std::cout << "Usage: " << argv[0] << " <XCLBIN File>" << " <number of points to test>" << std::endl;
 		return EXIT_FAILURE;
 	}
 
 	std::string binaryFile = argv[1];
-	uint64_t num_in = 32;
+	uint64_t num_in = strtol(argv[2], NULL, 0);
 
 	Bn128 bn128;
 	cl_int err;
