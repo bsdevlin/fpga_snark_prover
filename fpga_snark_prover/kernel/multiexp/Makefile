@@ -5,6 +5,9 @@ help::
 	$(ECHO) "  make all TARGET=<hw_emu/hw>"
 	$(ECHO) "      Command to generate the design for specified Target and Shell and run the test program."
 	$(ECHO) ""
+	$(ECHO) "  make to_f1 S3_BUCKET=<S3 name of your bucket>"
+  $(ECHO) "      Command to create the AFI and .awsxclbin required to run on the AWS FPGA. You need to have a S3 bucket to upload files to"
+  $(ECHO) ""
 	$(ECHO) "  make clean "
 	$(ECHO) "      Command to remove the generated non-hardware files."
 	$(ECHO) ""
@@ -13,14 +16,16 @@ help::
 	$(ECHO) ""
 
 KERNEL_NAME := multiexp_kernel
-EXECUTABLE := host
+EXECUTABLE := bin/host.exe
 BUILD_DIR := build_output
 DEVICE := $(AWS_PLATFORM)
 TARGET := hw_emu
 HOST_ARCH := x86
+F1_FILE := to_f1.tar.gz
+S3_BUCKET := your_bucket_name
 
 # Points to top directory of Git Vitis repository
-COMMON_REPO = ../../../submodules/aws-fpga/Vitis/examples/xilinx/
+COMMON_REPO = $(AWS_FPGA_REPO_DIR)/Vitis/examples/xilinx/
 PWD = $(shell readlink -f .)
 ABS_COMMON_REPO = $(shell readlink -f $(COMMON_REPO))
 
@@ -34,9 +39,9 @@ VPP := v++
 HOST_SRCS += $(xcl2_SRCS)
 HOST_SRCS += src/host.cpp ../shared/bn128.cpp
 HOST_INC := -I../shared/
-KERNEL_XCL := $(BUILD_DIR)/$(KERNEL_NAME)_$(TARGET).xclbin
-BINARY_CONTAINERS += $(KERNEL_XCL)
+KERNEL_XCL = $(BUILD_DIR)/$(KERNEL_NAME)_$(TARGET).xclbin  
 BINARY_CONTAINER_vadd_OBJS += bin/$(KERNEL_NAME).xo
+BINARY_CONTAINER_AWS = $(BUILD_DIR)/$(KERNEL_NAME)_fpga.awsxclbin
 
 # Kernel compiler global settings
 CLFLAGS += -t $(TARGET) --platform $(DEVICE) --save-temps 
@@ -55,29 +60,46 @@ endif
 .PHONY: all clean cleanall $(BUILD_DIR) build run
 exe: $(EXECUTABLE)
 
-build: $(BINARY_CONTAINERS)
+build: $(KERNEL_XCL)
 
 all: build exe run
 
 # Building kernel
-$(BUILD_DIR)/$(KERNEL_NAME)_$(TARGET).xclbin: $(BINARY_CONTAINER_vadd_OBJS)
+$(KERNEL_XCL): $(BINARY_CONTAINER_vadd_OBJS)
 	mkdir -p $(BUILD_DIR)
 	$(VPP) $(CLFLAGS) --temp_dir $(BUILD_DIR) -l $(LDCLFLAGS) -o'$@' $(+)
 
 # Building Host
 $(EXECUTABLE): $(HOST_SRCS)
-	$(CXX) $(CXXFLAGS) $(HOST_INC) $(HOST_SRCS) -o 'bin/$@' $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $(HOST_INC) $(HOST_SRCS) -o '$@' $(LDFLAGS)
 
 # Running the program
-run: $(EXECUTABLE) $(BINARY_CONTAINERS)
+run: $(EXECUTABLE) $(KERNEL_XCL)
 ifeq ($(TARGET),hw_emu)
-	cd $(BUILD_DIR); XCL_EMULATION_MODE=hw_emu ../bin/$(EXECUTABLE) $(KERNEL_NAME)_$(TARGET).xclbin
+	cd $(BUILD_DIR); XCL_EMULATION_MODE=hw_emu ../$(EXECUTABLE) $(KERNEL_NAME)_$(TARGET).xclbin
 else
-	cd $(BUILD_DIR); ../bin/$(EXECUTABLE) $(KERNEL_NAME)_$(TARGET).xclbin
+	cd $(BUILD_DIR); ../$(EXECUTABLE) $(KERNEL_NAME)_$(TARGET).xclbin
 endif 
 
+# Gather files needed to run on the FPGA
+.PHONY: to_f1
+to_f1: TARGET = hw
+to_f1: $(F1_FILE)
+ 
+$(F1_FILE): $(EXECUTABLE) $(BINARY_CONTAINER_AWS) 
+  tar czvf $@ $^
+
+# This takes the output FPGA files and creates an AFI to run on AWS FPGA hosts
+$(BINARY_CONTAINER_AWS): $(KERNEL_XCL)
+  cd $(BUILD_DIR); \
+  $(AWS_FPGA_REPO_DIR)/Vitis/tools/create_vitis_afi.sh \
+     -xclbin=$(KERNEL_XCL) \
+           -o=$@ \
+     -s3_bucket=$(S3_BUCKET) -s3_dcp_key=dcp -s3_logs_key=logs; \
+  cat *afi_id.txt
+  
 clean:
-	rm -fr $(BUILD_DIR)/*hw_emu* bin/$(EXECUTABLE)
+	rm -fr $(BUILD_DIR)/*hw_emu* $(EXECUTABLE)
 
 cleanall: clean
 	rm -fr $(BUILD_DIR)

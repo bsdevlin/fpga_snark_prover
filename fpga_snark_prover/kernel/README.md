@@ -5,9 +5,8 @@ Several kernels have been compiled from the RTL code that allows for easy inclus
 exercised depending on what functionality is needed.
 Each kernels operates on DRAM memory on the FPGA, which has 4 DDR banks of 16GB each. 
 Each kernel has been tested with the **hw_emu** and **hw** makefile targets. 
-The **hw_emu** target create a ``out/<kernel_name>.xclbin`` file and runs hardware simulation which is useful for debugging, especially
-when enabling the gui to view the waveform while simulating or as a post-simulation result. 
-The **hw** target will build the ``out/<kernel_name>.xclbin`` and ``.awsxclbin`` file which is used to create an AFI for use on Amazon AWS F1 instances with real hardware.
+The **hw_emu** target create a ``out/<kernel_name>.xclbin`` file and runs hardware simulation which will verify the design against the host.cpp. This takes around 5min to build.
+The **hw** target will build the ``out/<kernel_name>.xclbin`` and ``.awsxclbin`` file which is used to create an AFI for use on Amazon AWS F1 instances with real hardware. This takes around 4 hours to build.
 
 For more information please see [here](https://github.com/aws/aws-fpga/tree/master/Vitis).
 
