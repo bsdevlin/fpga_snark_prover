@@ -57,6 +57,44 @@ module multiexp_fp2_core #(
 
 localparam DAT_BITS = $bits(FE_TYPE);
 
+//////// We internally expand the width
+if_axi_stream #(.DAT_BITS($bits(FP2_TYPE)+DAT_BITS), .CTL_BITS(CTL_BITS)) i_pnt_scl_int_if (i_clk);
+if_axi_stream #(.DAT_BITS($bits(FP2_TYPE)+DAT_BITS), .CTL_BITS(CTL_BITS)) o_pnt_int_if (i_clk);
+
+logic [2:0] out_cnt;
+
+always_comb begin
+  i_pnt_scl_if.rdy = ~i_pnt_scl_int_if.val ||  (i_pnt_scl_int_if.val && i_pnt_scl_int_if.rdy);
+  o_pnt_int_if.rdy = o_pnt_if.eop && (~o_pnt_if.val || (o_pnt_if.val && o_pnt_if.rdy));
+end
+
+always_ff @ (posedge i_clk) begin
+  if (i_rst) begin
+    o_pnt_if.reset_source();
+    i_pnt_scl_int_if.reset_source();
+    out_cnt <= 0;
+  end else begin
+    if (i_pnt_scl_int_if.rdy) i_pnt_scl_int_if.val <= 0;
+    if (o_pnt_if.rdy) o_pnt_if.val <= 0;
+    
+    if (~i_pnt_scl_int_if.val ||  (i_pnt_scl_int_if.val && i_pnt_scl_int_if.rdy)) begin
+      i_pnt_scl_int_if.dat <= {i_pnt_scl_if.dat, i_pnt_scl_int_if.dat[$bits(FP2_TYPE)+DAT_BITS-1:DAT_BITS]};
+      i_pnt_scl_int_if.ctl <= i_pnt_scl_if.ctl;
+      i_pnt_scl_int_if.val <= i_pnt_scl_if.eop;
+    end
+    
+    if (~o_pnt_if.val || (o_pnt_if.val && o_pnt_if.rdy)) begin
+      o_pnt_if.val <= o_pnt_int_if.val;
+      o_pnt_if.dat <= o_pnt_int_if.dat[out_cnt*DAT_BITS +: DAT_BITS];
+      o_pnt_if.sop <= out_cnt == 0;
+      o_pnt_if.eop <= out_cnt == 5;
+      o_pnt_if.ctl <= o_pnt_int_if.ctl;
+      if (o_pnt_int_if.val) out_cnt <= out_cnt == 5 ? 0 : out_cnt + 1;
+    end
+    
+  end  
+end
+//////////////////////////////////////
 
 if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   add_if_i [3:0] (i_clk);
 if_axi_stream #(.DAT_BITS(2*DAT_BITS), .CTL_BITS(CTL_BITS)) add_if_o [3:0] (i_clk);
@@ -80,8 +118,8 @@ logic [2:0] i_cnt, o_cnt;
 always_ff @ (posedge i_clk) begin
   if (i_rst) begin
     state <= IDLE;
-    i_pnt_scl_if.rdy <= 0;
-    o_pnt_if.reset_source();
+    i_pnt_scl_int_if.rdy <= 0;
+    o_pnt_int_if.reset_source();
     key_cnt <= 0;
     in_cnt <= 0;
     add_rdy_i <= 0;
@@ -93,31 +131,31 @@ always_ff @ (posedge i_clk) begin
 
     dbl_rdy_i <= 1;
 
-    o_pnt_if.sop <= 1;
-    o_pnt_if.eop <= 1;
+    o_pnt_int_if.sop <= 1;
+    o_pnt_int_if.eop <= 1;
 
     if (dbl_rdy_o) dbl_val_i <= 0;
     if (add_rdy_o) add_val_i <= 0;
-    if (o_pnt_if.rdy) o_pnt_if.val <= 0;
+    if (o_pnt_int_if.rdy) o_pnt_int_if.val <= 0;
 
     case (state)
       IDLE: begin
         num_in <= i_num_in;
         key_cnt <= KEY_BITS-1;
         in_cnt <= 0;
-        i_pnt_scl_if.rdy <= 0; 
-        if (~o_pnt_if.val) begin
-          o_pnt_if.ctl <= i_pnt_scl_if.ctl;
-          if (i_pnt_scl_if.val) begin
-            if (i_pnt_scl_if.ctl[0] == 0) begin
-              o_pnt_if.dat <= 0;
+        i_pnt_scl_int_if.rdy <= 0; 
+        if (~o_pnt_int_if.val) begin
+          o_pnt_int_if.ctl <= i_pnt_scl_int_if.ctl;
+          if (i_pnt_scl_int_if.val) begin
+            if (i_pnt_scl_int_if.ctl[0] == 0) begin
+              o_pnt_int_if.dat <= 0;
               state <= ADD;
             end else begin
             // This is the state used when collapsing multiple core's results together
               add_val_i <= 1;
-              i_pnt_scl_if.rdy <= 1; 
-              add_dat_i <= i_pnt_scl_if.dat[$bits(FE_TYPE) +: $bits(FP2_TYPE)];
-              o_pnt_if.val <= 0;
+              i_pnt_scl_int_if.rdy <= 1; 
+              add_dat_i <= i_pnt_scl_int_if.dat[$bits(FE_TYPE) +: $bits(FP2_TYPE)];
+              o_pnt_int_if.val <= 0;
               key_cnt <= 0;
               in_cnt <= i_num_in-1;
               state <= ADD_WAIT;
@@ -127,28 +165,28 @@ always_ff @ (posedge i_clk) begin
       end
       DBL: begin
         dbl_val_i <= 1;
-        i_pnt_scl_if.rdy <= 0;
+        i_pnt_scl_int_if.rdy <= 0;
         state <= DBL_WAIT;
       end
       DBL_WAIT: begin
         if (dbl_val_o) begin
-          o_pnt_if.dat <= dbl_pnt_o;
+          o_pnt_int_if.dat <= dbl_pnt_o;
           key_cnt <= key_cnt - 1;
           state <= ADD;
         end
       end
       ADD: begin
-        i_pnt_scl_if.rdy <= 1;
-        if (i_pnt_scl_if.val && i_pnt_scl_if.rdy) begin
-          i_pnt_scl_if.rdy <= 0;
-          if (i_pnt_scl_if.dat[key_cnt] == 1) begin
+        i_pnt_scl_int_if.rdy <= 1;
+        if (i_pnt_scl_int_if.val && i_pnt_scl_int_if.rdy) begin
+          i_pnt_scl_int_if.rdy <= 0;
+          if (i_pnt_scl_int_if.dat[key_cnt] == 1) begin
             add_val_i <= 1;
-            add_dat_i <= i_pnt_scl_if.dat[$bits(FE_TYPE) +: $bits(FP2_TYPE)];
+            add_dat_i <= i_pnt_scl_int_if.dat[$bits(FE_TYPE) +: $bits(FP2_TYPE)];
             state <= ADD_WAIT;
           end else if (in_cnt == num_in-1) begin
             in_cnt <= 0;
             if (key_cnt == 0) begin
-              o_pnt_if.val <= 1;
+              o_pnt_int_if.val <= 1;
               state <= IDLE;
             end else begin
               state <= DBL;
@@ -159,10 +197,10 @@ always_ff @ (posedge i_clk) begin
         end
       end
       ADD_WAIT: begin
-        i_pnt_scl_if.rdy <= 0;
+        i_pnt_scl_int_if.rdy <= 0;
         add_rdy_i <= 1;
         if (add_val_o || dbl_val_o) begin
-          o_pnt_if.dat <= dbl_val_o ? dbl_pnt_o : add_pnt_o;
+          o_pnt_int_if.dat <= dbl_val_o ? dbl_pnt_o : add_pnt_o;
           if (add_err_o) begin
             // This means the points were the same so we need to double
             dbl_val_i <= 1;
@@ -170,14 +208,14 @@ always_ff @ (posedge i_clk) begin
             if (in_cnt == num_in-1) begin
               in_cnt <= 0;
               if (key_cnt == 0) begin
-                o_pnt_if.val <= 1;
+                o_pnt_int_if.val <= 1;
                 add_rdy_i <= 0;
                 state <= IDLE;
               end else begin
                 state <= DBL;
               end
             end else begin
-              i_pnt_scl_if.rdy <= 1;
+              i_pnt_scl_int_if.rdy <= 1;
               in_cnt <= in_cnt + 1;
               state <= ADD;
             end
@@ -198,7 +236,7 @@ ec_fpn_add (
   .i_clk ( i_clk ),
   .i_rst ( i_rst ),
   .i_p1  ( add_dat_i  ),
-  .i_p2  ( o_pnt_if.dat ),
+  .i_p2  ( o_pnt_int_if.dat ),
   .i_val ( add_val_i ),
   .o_rdy ( add_rdy_o ),
   .o_p   ( add_pnt_o ),
@@ -224,7 +262,7 @@ ec_fpn_dbl #(
 ec_fpn_dbl (
   .i_clk ( i_clk   ),
   .i_rst ( i_rst   ),
-  .i_p   ( o_pnt_if.dat ),
+  .i_p   ( o_pnt_int_if.dat ),
   .i_val ( dbl_val_i ),
   .o_rdy ( dbl_rdy_o ),
   .o_p   ( dbl_pnt_o ),

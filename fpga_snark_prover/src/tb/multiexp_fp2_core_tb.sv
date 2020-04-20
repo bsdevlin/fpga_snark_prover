@@ -24,7 +24,7 @@ import common_pkg::*;
 
 localparam CLK_PERIOD = 100;
 
-localparam NUM_IN = 4;
+localparam NUM_IN = 1;
 localparam DAT_BITS = $bits(fe_t);
 localparam KEY_BITS = $bits(P);
 localparam CTL_BITS = 9;
@@ -40,8 +40,8 @@ if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS)) mul_i_if (clk);
 localparam DAT_IN0 = $bits(fe_t) + $bits(fp2_jb_point_t);
 localparam DAT_IN1 = $bits(fp2_jb_point_t);
 
-if_axi_stream #(.DAT_BYTS((DAT_IN0+7)/8), .CTL_BITS(CTL_BITS)) i_pnt_scl_if (clk);
-if_axi_stream #(.DAT_BYTS((DAT_IN1+7)/8), .CTL_BITS(CTL_BITS)) o_pnt_if (clk);
+if_axi_stream #(.DAT_BYTS(($bits(fe_t)+7)/8), .CTL_BITS(CTL_BITS)) i_pnt_scl_if (clk);
+if_axi_stream #(.DAT_BYTS(($bits(fe_t)+7)/8), .CTL_BITS(CTL_BITS)) o_pnt_if (clk);
 
 fp2_jb_point_t in_p [];
 fe_t in_s [];
@@ -121,7 +121,7 @@ begin
     in_s[i] = random_vector((DAT_BITS+7)/8) % P;
     $display("Key 0x%x", in_s[i]);
   end
-
+ 
   expected = fp2_to_affine(fp2_jb_from_mont(fp2_multiexp_batch(in_s, in_p)), 0);
 
   fork
