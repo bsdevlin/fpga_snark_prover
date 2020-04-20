@@ -300,8 +300,8 @@ resource_share # (
   .DAT_BITS     ( 2*DAT_BITS ),
   .CTL_BITS     ( CTL_BITS   ),
   .OVR_WRT_BIT  ( 6 ),
-  .PIPELINE_IN  ( 0 ),
-  .PIPELINE_OUT ( 0 )
+  .PIPELINE_IN  ( 1 ),
+  .PIPELINE_OUT ( 1 )
 )
 resource_share_add (
   .i_clk ( i_clk ),
@@ -317,8 +317,8 @@ resource_share # (
   .DAT_BITS     ( 2*DAT_BITS ),
   .CTL_BITS     ( CTL_BITS   ),
   .OVR_WRT_BIT  ( 6 ),
-  .PIPELINE_IN  ( 0 ),
-  .PIPELINE_OUT ( 0 )
+  .PIPELINE_IN  ( 1 ),
+  .PIPELINE_OUT ( 1 )
 )
 resource_share_sub (
   .i_clk ( i_clk ),
@@ -335,8 +335,8 @@ resource_share # (
   .DAT_BITS     ( 2*DAT_BITS ),
   .CTL_BITS     ( CTL_BITS   ),
   .OVR_WRT_BIT  ( 8 ),
-  .PIPELINE_IN  ( 0 ),
-  .PIPELINE_OUT ( 0 )
+  .PIPELINE_IN  ( 1 ),
+  .PIPELINE_OUT ( 1 )
 )
 resource_share_mul (
   .i_clk ( i_clk ),
