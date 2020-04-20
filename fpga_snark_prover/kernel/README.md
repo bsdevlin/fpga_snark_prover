@@ -29,7 +29,7 @@ README.md                      -- Kernel specific readme
 
 
 ##  Kernel overview ##
-###  Multiexp ###
+###  Multiexp_g1 ###
 Calculates the G1 multi-exponentiation. 
 
 | # | Argument | Type | Notes |
