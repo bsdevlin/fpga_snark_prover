@@ -18,36 +18,29 @@
 */
 `timescale 1ps/1ps
 
-module multiexp_fp2_core_tb ();
+module multiexp_fp2_top_tb ();
 import bn128_pkg::*;
 import common_pkg::*;
 
 localparam CLK_PERIOD = 100;
 
 localparam NUM_IN = 4;
+localparam NUM_CORES = 2;
+localparam NUM_ARITH = 1;
+
 localparam DAT_BITS = $bits(fe_t);
-localparam KEY_BITS = $bits(P);
-localparam CTL_BITS = 9;
 
 logic clk, rst;
 
-fp2_jb_point_t res_o;
-always_comb res_o = o_pnt_if.dat;
-
-if_axi_stream #(.DAT_BITS(DAT_BITS*2), .CTL_BITS(CTL_BITS)) mul_o_if (clk);
-if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS)) mul_i_if (clk);
-
 localparam DAT_IN0 = $bits(fe_t) + $bits(fp2_jb_point_t);
 
-if_axi_stream #(.DAT_BYTS(($bits(fe_t)+7)/8), .CTL_BITS(CTL_BITS)) i_pnt_scl_if (clk);
-if_axi_stream #(.DAT_BYTS(($bits(fe_t)+7)/8), .CTL_BITS(CTL_BITS)) o_pnt_if (clk);
+if_axi_stream #(.DAT_BYTS(($bits(fe_t)+7)/8), .CTL_BITS(8)) i_pnt_scl_if (clk);
+if_axi_stream #(.DAT_BYTS(($bits(fe_t)+7)/8), .CTL_BITS(8)) o_pnt_if (clk);
 
 fp2_jb_point_t in_p [];
 fe_t in_s [];
-
+logic [$clog2(DAT_BITS)-1:0] cnt;
 logic [63:0] num_in;
-
-logic [$clog2(DAT_BITS*NUM_IN):0] cnt;
 
 initial begin
   rst = 0;
@@ -59,54 +52,42 @@ initial begin
   forever #(CLK_PERIOD/2) clk = ~clk;
 end
 
-multiexp_fp2_core #(
-  .FP_TYPE  ( jb_point_t ),
-  .FE_TYPE  ( fe_t       ),
-  .FP2_TYPE ( fp2_jb_point_t ),
-  .FE2_TYPE ( fe2_t      ),  
-  .KEY_BITS ( KEY_BITS   ),
-  .CTL_BITS ( CTL_BITS   ),
-  .CONST_3  ( CONST_3    ),
-  .CONST_4  ( CONST_4    ),
-  .CONST_8  ( CONST_8    ),
-  .P        ( P          )
+multiexp_fp2_top #(
+  .FP_TYPE            ( jb_point_t ),
+  .FE_TYPE            ( fe_t       ),
+  .FP2_TYPE           ( fp2_jb_point_t ),
+  .FE2_TYPE           ( fe2_t      ),  
+  .P                  ( P          ),
+  .NUM_CORES          ( NUM_CORES ),
+  .NUM_ARITH          ( NUM_ARITH ),
+  .REDUCE_BITS        ( MONT_REDUCE_BITS ),
+  .FACTOR             ( MONT_FACTOR      ),
+  .MASK               ( MONT_MASK        ),
+  .CONST_3            ( CONST_3    ),
+  .CONST_4            ( CONST_4    ),
+  .CONST_8            ( CONST_8    )
 )
-multiexp_fp2_core (
+multiexp_top (
   .i_clk ( clk ),
   .i_rst ( rst ),
   .i_pnt_scl_if ( i_pnt_scl_if ),
   .i_num_in ( num_in ),
-  .o_pnt_if ( o_pnt_if ),
-  .o_mul_if( mul_o_if ),
-  .i_mul_if( mul_i_if )
-);
-
-montgomery_mult_wrapper #(
-  .DAT_BITS    ( DAT_BITS         ),
-  .CTL_BITS    ( CTL_BITS         ),
-  .REDUCE_BITS ( MONT_REDUCE_BITS ),
-  .FACTOR      ( MONT_FACTOR      ),
-  .MASK        ( MONT_MASK        ),
-  .P           ( P                ),
-  .A_DSP_W     ( 27               ),
-  .B_DSP_W     ( 17               )
-)
-montgomery_mult_wrapper (
-  .i_clk ( clk ),
-  .i_rst ( rst ),
-  .i_mont_mul_if ( mul_o_if  ),
-  .o_mont_mul_if ( mul_i_if )
+  .o_pnt_if ( o_pnt_if )
 );
 
 
 task test0();
 begin
-  integer signed get_len;
+  integer signed get_len, start_time, finish_time;
   logic [common_pkg::MAX_SIM_BYTS*8-1:0] get_dat;
   fp2_jb_point_t out;
   fp2_af_point_t expected;
-  cnt = DAT_BITS-1;
   
+  fp2_jb_point_t int_res [NUM_CORES];
+  
+  
+  cnt = DAT_BITS-1;
+
   in_p = new[NUM_IN];
   in_s = new[NUM_IN];
   num_in = NUM_IN;
@@ -120,22 +101,24 @@ begin
     in_s[i] = random_vector((DAT_BITS+7)/8) % P;
     $display("Key 0x%x", in_s[i]);
   end
- 
+
   expected = fp2_to_affine(fp2_jb_from_mont(fp2_multiexp_batch(in_s, in_p)), 0);
 
+  start_time = $time;
   fork
     for(int j = 0; j < DAT_BITS; j++) begin
-      for (int i = 0; i < NUM_IN; i++) begin
-        i_pnt_scl_if.put_stream({in_p[i], in_s[i]}, (DAT_IN0+7)/8, 0);
-      end
+      for (int i = 0; i < NUM_IN; i++) i_pnt_scl_if.put_stream({in_p[i], in_s[i]}, (DAT_IN0+7)/8, 0);
       cnt--;
     end
     begin
       o_pnt_if.get_stream(get_dat, get_len, 0);
     end
   join
-
+  finish_time = $time;
   out = get_dat;
+  
+  
+  $display("test0 finished in %d clock cycles", (finish_time-start_time)/CLK_PERIOD);
   
   assert(fp2_to_affine(fp2_jb_from_mont(out), 0) == expected) else begin
     $display("Expected:");
@@ -151,15 +134,15 @@ begin
 end
 endtask;
 
-
 initial begin
 
   i_pnt_scl_if.reset_source();
   o_pnt_if.rdy = 0;
-  
+
   #(100*CLK_PERIOD);
 
   test0();
+
   #1us $finish();
 end
 endmodule

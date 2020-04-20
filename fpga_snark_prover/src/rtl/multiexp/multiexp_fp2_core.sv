@@ -65,7 +65,7 @@ logic [2:0] out_cnt;
 
 always_comb begin
   i_pnt_scl_if.rdy = ~i_pnt_scl_int_if.val ||  (i_pnt_scl_int_if.val && i_pnt_scl_int_if.rdy);
-  o_pnt_int_if.rdy = o_pnt_if.eop && (~o_pnt_if.val || (o_pnt_if.val && o_pnt_if.rdy));
+  o_pnt_int_if.rdy = (out_cnt == 5) && (~o_pnt_if.val || (o_pnt_if.val && o_pnt_if.rdy));
 end
 
 always_ff @ (posedge i_clk) begin
@@ -156,7 +156,7 @@ always_ff @ (posedge i_clk) begin
             // This is the state used when collapsing multiple core's results together
               add_val_i <= 1;
               i_pnt_scl_int_if.rdy <= 1; 
-              add_dat_i <= i_pnt_scl_int_if.dat[0 +: $bits(FP2_TYPE)];
+              add_dat_i <= i_pnt_scl_int_if.dat[$bits(FE_TYPE) +: $bits(FP2_TYPE)];
               o_pnt_int_if.val <= 0;
               key_cnt <= 0;
               in_cnt <= i_num_in-1;
