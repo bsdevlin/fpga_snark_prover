@@ -14,10 +14,14 @@ For more information please see [here](https://github.com/aws/aws-fpga/tree/mast
 Each kernel folder contains the following files:
 
 ```
-src/host.cpp                   -- The top level host file that that runs the kernel
-bin/<kernel_name>_kernel.xo    -- The binary kernel file that has been pre-compiled for linking into the application
-proj/create_project.tcl        -- The Vivado 2019.2 project creation file that can be used to re-create the project and create the kernel binary .xo file
+src/host.cpp                   -- The top level host file that shows example usage and test of the kernel
+src/kernel.cfg                 -- Kernel config options, here the SLR or DDR banks assigned can be changed
+src/kernel.xml                 -- XML describing the kernel, do not change
+src/hdl/*                      -- RTL files used to generate the kernel logic
+scripts/*                      -- Scripts used to generate output files, do not change
 README.md                      -- Kernel specific readme
+Makefile, utils.mk             -- Makefiles
+xrt.ini                        -- Used during testing with TARGET=hw_emu, you can uncomment the two lines to be able to see the simulation waveform
 ```
 
 ## To run ##
