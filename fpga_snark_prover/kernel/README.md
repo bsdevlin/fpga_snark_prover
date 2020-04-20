@@ -34,10 +34,17 @@ Calculates the G1 multi-exponentiation.
 
 | # | Argument | Type | Notes |
 | --- | --- | --- | --- |
-| 0 | num_in  | uint64_t  | The number of points/scalars to operate on.   |
+| 0 | num_in  | uint64_t  | The number of points in G1 and scalars pairs to operate on. Must be a multiple of the number of cores (16).   |
 | 1 | point_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of input G1 points in Montgomery form affine coordinates. |
 | 2 | scalar_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of 256 bit scalars. |
 | 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G1 Montgomery form jacobian point coordinates. |
 
-###  Multiexp
+###  Multiexp_g2
 Calculates the G2 or G1 multi-exponentiation. 
+
+| # | Argument | Type | Notes |
+| --- | --- | --- | --- |
+| 0 | num_in  | uint64_t  | The number of points in G2 and scalars to operate on. Must be a multiple of the number of cores (16).   |
+| 1 | point_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of input G2 points in Montgomery form affine coordinates. |
+| 2 | scalar_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of 256 bit scalars. |
+| 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G2 Montgomery form jacobian point coordinates. |

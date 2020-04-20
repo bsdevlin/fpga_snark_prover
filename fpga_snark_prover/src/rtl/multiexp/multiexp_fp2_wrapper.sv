@@ -62,28 +62,28 @@ always_ff @ (posedge i_clk) begin
           end
         end
         1: begin
-          i_pnt_scl_if.dat <= i_pnt_scl_if.dat[0 +: 256];
+          i_pnt_scl_if.dat <= i_pnt_if.dat[0 +: 256];
           if (i_pnt_if.val) begin
             i_cnt <= i_cnt + 1;
             i_pnt_scl_if.val <= 1;
           end
         end
         2: begin
-          i_pnt_scl_if.dat <= i_pnt_scl_if.dat[256 +: 256];
+          i_pnt_scl_if.dat <= i_pnt_if.dat[256 +: 256];
           if (i_pnt_if.val) begin
             i_cnt <= i_cnt + 1;
             i_pnt_scl_if.val <= 1;
           end
         end
         3: begin
-          i_pnt_scl_if.dat <= i_pnt_scl_if.dat[0 +: 256];
+          i_pnt_scl_if.dat <= i_pnt_if.dat[0 +: 256];
           if (i_pnt_if.val) begin
             i_cnt <= i_cnt + 1;
             i_pnt_scl_if.val <= 1;
           end
         end
         4: begin
-          i_pnt_scl_if.dat <= i_pnt_scl_if.dat[256 +: 256];
+          i_pnt_scl_if.dat <= i_pnt_if.dat[256 +: 256];
           if (i_pnt_if.val) begin
             i_cnt <= i_cnt + 1;
             i_pnt_scl_if.val <= 1;
@@ -117,11 +117,11 @@ always_ff @ (posedge i_clk) begin
     if (~o_res_if.val || (o_res_if.val && o_res_if.rdy)) begin
 
       if (o_pnt_if.val) begin
-        res_cnt <= res_cnt == 5 ? 0 : res_cnt + 1;
-        o_res_if.val <= (res_cnt == 1) || (res_cnt == 3) || (res_cnt == 5);
-        o_res_if.sop <= res_cnt == 0;
-        o_res_if.eop <= res_cnt == 5;
-        o_res_if.dat[(res_cnt % 2)*256 +: 256] <= o_pnt_if.dat;
+        o_res_cnt <= o_res_cnt == 5 ? 0 : o_res_cnt + 1;
+        o_res_if.val <= (o_res_cnt == 1) || (o_res_cnt == 3) || (o_res_cnt == 5);
+        o_res_if.sop <= o_res_cnt == 0;
+        o_res_if.eop <= o_res_cnt == 5;
+        o_res_if.dat[(o_res_cnt % 2)*256 +: 256] <= o_pnt_if.dat;
       end
       
     end 

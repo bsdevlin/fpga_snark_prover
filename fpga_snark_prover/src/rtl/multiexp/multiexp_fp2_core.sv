@@ -231,8 +231,7 @@ end
 ec_fpn_add #(
   .FP_TYPE       ( FP2_TYPE ),
   .FE_TYPE       ( FE2_TYPE ),
-  .FE_TYPE_ARITH ( FE_TYPE  ),
-  .CONST_3       ( CONST_3  )
+  .FE_TYPE_ARITH ( FE_TYPE  )
 )
 ec_fpn_add (
   .i_clk ( i_clk ),
