@@ -52,6 +52,8 @@ endif
 # Use these flags to add more DDR banks
 #CLFLAGS += --sp multiexp_kernel_1.point_p:DDR[0:3] --sp multiexp_kernel_1.result_p:DDR[0:3] --sp multiexp_kernel_1.scalar_p:DDR[0:3]
 
+# Place in SLR1
+CLFLAGS += --slr $(KERNEL_NAME):SLR1
 
 ifneq ($(TARGET),$(findstring $(TARGET), hw hw_emu))
 $(warning WARNING:Application supports only hw hw_emu TARGET. Please use the target for running the application)

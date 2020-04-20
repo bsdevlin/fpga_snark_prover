@@ -52,4 +52,4 @@ if {[file exists "${xoname}"]} {
     file delete -force "${xoname}"
 }
 
-package_xo -xo_path ${xoname} -kernel_name multiexp_g2_kernel -ip_directory ./packaged_kernel_${suffix} -kernel_xml ./src/kernel.xml
+package_xo -xo_path ${xoname} -kernel_name $krnl_name -ip_directory ./packaged_kernel_${suffix} -kernel_xml ./src/kernel.xml

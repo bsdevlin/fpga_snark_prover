@@ -29,7 +29,7 @@ COMMON_REPO = $(AWS_FPGA_REPO_DIR)/Vitis/examples/xilinx/
 PWD = $(shell readlink -f .)
 ABS_COMMON_REPO = $(shell readlink -f $(COMMON_REPO))
 
-TARGET := hw
+TARGET := hw_emu
 HOST_ARCH := x86
 SYSROOT := 
 DEVICE := $(AWS_PLATFORM)
@@ -46,14 +46,14 @@ VPP := v++
 include $(ABS_COMMON_REPO)/common/includes/opencl/opencl.mk
 include $(ABS_COMMON_REPO)/common/includes/xcl2/xcl2.mk
 CXXFLAGS += $(xcl2_CXXFLAGS)
-LDFLAGS += $(xcl2_LDFLAGS)
+LDFLAGS += $(xcl2_LDFLAGS) -lgmp
 HOST_SRCS += $(xcl2_SRCS)
-include config.mk
+HOST_SRCS += src/host.cpp ../shared/bn128.cpp
+HOST_INC := -I../shared/
 
 CXXFLAGS += $(opencl_CXXFLAGS) -Wall -O0 -g -std=c++11
 LDFLAGS += $(opencl_LDFLAGS)
 
-HOST_SRCS += src/host.cpp 
 # Host compiler global settings
 CXXFLAGS += -fmessage-length=0
 LDFLAGS += -lrt -lstdc++ 
@@ -75,7 +75,7 @@ CMD_ARGS = $(BUILD_DIR)/$(KERNEL_NAME).xclbin
 EMCONFIG_DIR = $(TEMP_DIR)
 EMU_DIR = $(SDCARD)/data/emulation
 
-CLFLAGS += --slr $(KERNEL_NAME):SLR1
+CLFLAGS += --config src/kernel.cfg
 
 BINARY_CONTAINERS += $(BUILD_DIR)/$(KERNEL_NAME).xclbin
 BINARY_CONTAINER_OBJS += $(TEMP_DIR)/$(KERNEL_NAME).xo
@@ -95,6 +95,12 @@ exe: $(EXECUTABLE)
 .PHONY: build
 build: $(BINARY_CONTAINERS)
 
+VIVADO := $(XILINX_VIVADO)/bin/vivado
+
+$(TEMP_DIR)/$(KERNEL_NAME).xo: src/kernel.xml scripts/package_kernel.tcl scripts/gen_xo.tcl src/hdl/*.sv src/hdl/*.v 
+	mkdir -p $(TEMP_DIR)
+	$(VIVADO) -mode batch -source scripts/gen_xo.tcl -tclargs $(TEMP_DIR)/multiexp_g2_kernel.xo multiexp_g2_kernel $(TARGET) $(DEVICE) $(XSA)
+
 # Building kernel
 $(BUILD_DIR)/$(KERNEL_NAME).xclbin: $(BINARY_CONTAINER_OBJS)
 	mkdir -p $(BUILD_DIR)
@@ -102,12 +108,22 @@ $(BUILD_DIR)/$(KERNEL_NAME).xclbin: $(BINARY_CONTAINER_OBJS)
 
 # Building Host
 $(EXECUTABLE): check-xrt $(HOST_SRCS) $(HOST_HDRS)
-	$(CXX) $(CXXFLAGS) $(HOST_SRCS) $(HOST_HDRS) -o '$@' $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) $(HOST_INC) $(HOST_SRCS) $(HOST_HDRS) -o '$@' $(LDFLAGS)
 
 emconfig:$(EMCONFIG_DIR)/emconfig.json
 $(EMCONFIG_DIR)/emconfig.json:
 	emconfigutil --platform $(DEVICE) --od $(EMCONFIG_DIR)
-	
+
+NUM_IN :=
+EMU_MODE :=
+ifeq ($(TARGET), hw_emu)
+	NUM_IN := 0x10
+	EMU_MODE := XCL_EMULATION_MODE=$(TARGET)
+else
+	NUM_IN := 0x10000
+	EMU_MODE :=
+endif
+
 # Gather files needed to run on the FPGA
 .PHONY: to_f1
 to_f1: TARGET = hw
@@ -125,14 +141,11 @@ $(BINARY_CONTAINER_AWS): $(BUILD_DIR)/$(KERNEL_NAME).xclbin
 check: TARGET = hw_emu
 check: all
 	$(CP) $(EMCONFIG_DIR)/emconfig.json .
-	XCL_EMULATION_MODE=$(TARGET) ./$(EXECUTABLE) $(BUILD_DIR)/$(KERNEL_NAME).xclbin
-	./$(EXECUTABLE) $(BUILD_DIR)/$(KERNEL_NAME).xclbin
-
+	$(EMU_MODE) ./$(EXECUTABLE) $(BUILD_DIR)/$(KERNEL_NAME).xclbin $(NUM_IN)
 
 .PHONY: test
 test: $(EXECUTABLE)
-	XCL_EMULATION_MODE=$(TARGET) ./$(EXECUTABLE) $(BUILD_DIR)/$(KERNEL_NAME).xclbin
-	./$(EXECUTABLE) $(BUILD_DIR)/$(KERNEL_NAME).xclbin
+	$(EMU_MODE) ./$(EXECUTABLE) $(BUILD_DIR)/$(KERNEL_NAME).xclbin $(NUM_IN)
 
 ifneq ($(TARGET),$(findstring $(TARGET), hw hw_emu))
 $(warning WARNING:Application supports only hw hw_emu TARGET. Please use the target for running the application)
