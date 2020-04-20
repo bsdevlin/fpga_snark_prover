@@ -81,17 +81,17 @@ always_ff @ (posedge i_clk) begin
 end
   
 multiexp_top #(
-  .FP_TYPE            ( bn128_pkg::jb_point_t         ),
-  .FE_TYPE            ( bn128_pkg::fe_t               ),
-  .P                  ( bn128_pkg::P                  ),
-  .NUM_CORES          ( bn128_pkg::NUM_MULTIEXP_CORES ),
-  .NUM_ARITH          ( bn128_pkg::NUM_MULTIEXP_ARITH ),
-  .REDUCE_BITS        ( bn128_pkg::MONT_REDUCE_BITS   ),
-  .FACTOR             ( bn128_pkg::MONT_FACTOR        ),
-  .MASK               ( bn128_pkg::MONT_MASK          ),
-  .CONST_3            ( bn128_pkg::CONST_3            ),
-  .CONST_4            ( bn128_pkg::CONST_4            ),
-  .CONST_8            ( bn128_pkg::CONST_8            )
+  .FP_TYPE            ( bn128_pkg::jb_point_t            ),
+  .FE_TYPE            ( bn128_pkg::fe_t                  ),
+  .P                  ( bn128_pkg::P                     ),
+  .NUM_CORES          ( bn128_pkg::NUM_G1_MULTIEXP_CORES ),
+  .NUM_ARITH          ( bn128_pkg::NUM_G1_MULTIEXP_ARITH ),
+  .REDUCE_BITS        ( bn128_pkg::MONT_REDUCE_BITS      ),
+  .FACTOR             ( bn128_pkg::MONT_FACTOR           ),
+  .MASK               ( bn128_pkg::MONT_MASK             ),
+  .CONST_3            ( bn128_pkg::CONST_3               ),
+  .CONST_4            ( bn128_pkg::CONST_4               ),
+  .CONST_8            ( bn128_pkg::CONST_8               )
 )
 multiexp_top (
   .i_clk         ( i_clk         ),
