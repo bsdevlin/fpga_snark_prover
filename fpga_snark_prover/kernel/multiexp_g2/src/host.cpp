@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
 		} else {
 			std::cout << "Device[" << i << "]: program successful!\n";
 			OCL_CHECK(err,
-					krnl = cl::Kernel(program, "multiexp_g2", &err));
+					krnl = cl::Kernel(program, "multiexp_g2_kernel", &err));
 			valid_device++;
 			break; // we break because we found a valid device
 		}
