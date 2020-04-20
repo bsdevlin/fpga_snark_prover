@@ -283,7 +283,7 @@ assign point_wstrb = 0;
 assign point_wlast = 0;
 assign point_bready = 0;
 
-bn128_fp2_multiexp_wrapper bn128_fp2_multiexp_wrapper
+bn128_multiexp_wrapper bn128_fp2_multiexp_wrapper
 (
   .i_clk ( ap_clk ),
   .i_rst ( areset ),
