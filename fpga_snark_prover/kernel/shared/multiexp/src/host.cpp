@@ -32,7 +32,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <time.h>
 
 /*
- This shows an example of using the multiexp g1 kernel to take num_in
+ This shows an example of using the multiexp kernel to take num_in
  inputs and perform multi exponentiation over that many points.
  The output is printed and checked at the end.
  */
@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
 		} else {
 			std::cout << "Device[" << i << "]: program successful!\n";
 			OCL_CHECK(err,
-					krnl = cl::Kernel(program, "multiexp_g1_kernel", &err));
+					krnl = cl::Kernel(program, "multiexp_kernel", &err));
 			valid_device++;
 			break; // we break because we found a valid device
 		}
@@ -188,13 +188,13 @@ int main(int argc, char **argv) {
 	Bn128::af_fp_t res_af = bn128.mont_jb_to_af(res_jb);
 	printf("Converted back to af coordinates in normal form:\n");
 	bn128.print_af(res_af);
-
-	if (res_af == sw_result) {
+	
+	if (res_af == sw_result) {	
 		printf("\n\nHURRAH - Result matched expected result, took %luns for %lu input points, %f op/s.\n\n", compute_time, num_in, (1e9*num_in)/compute_time);
 		return EXIT_SUCCESS;
 	} else {
 		printf("\n\nERROR - Result did not match\n\n");
 		return EXIT_FAILURE;
 	}
-
+		
 }

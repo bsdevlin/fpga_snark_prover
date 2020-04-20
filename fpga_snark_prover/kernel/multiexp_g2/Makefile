@@ -99,7 +99,7 @@ VIVADO := $(XILINX_VIVADO)/bin/vivado
 
 $(TEMP_DIR)/$(KERNEL_NAME).xo: src/kernel.xml scripts/package_kernel.tcl scripts/gen_xo.tcl src/hdl/*.sv src/hdl/*.v 
 	mkdir -p $(TEMP_DIR)
-	$(VIVADO) -mode batch -source scripts/gen_xo.tcl -tclargs $(TEMP_DIR)/multiexp_g2_kernel.xo multiexp_g2_kernel $(TARGET) $(DEVICE) $(XSA)
+	$(VIVADO) -mode batch -source scripts/gen_xo.tcl -tclargs $(TEMP_DIR)/$(KERNEL_NAME).xo $(KERNEL_NAME) $(TARGET) $(DEVICE) $(XSA)
 
 # Building kernel
 $(BUILD_DIR)/$(KERNEL_NAME).xclbin: $(BINARY_CONTAINER_OBJS)

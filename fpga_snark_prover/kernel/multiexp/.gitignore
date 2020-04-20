@@ -1,5 +1,11 @@
-/*
+/*  
 !.gitignore
-!Makefile
+!scripts/
 !src/
-!bin/
+!config.mk
+!description.json
+!details.md
+!Makefile
+!utils.mk
+!xrt.ini
+
