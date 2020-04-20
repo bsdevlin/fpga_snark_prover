@@ -78,9 +78,11 @@ always_ff @ (posedge i_clk) begin
     if (o_pnt_if.rdy) o_pnt_if.val <= 0;
     
     if (~i_pnt_scl_int_if.val ||  (i_pnt_scl_int_if.val && i_pnt_scl_int_if.rdy)) begin
-      i_pnt_scl_int_if.dat <= {i_pnt_scl_if.dat, i_pnt_scl_int_if.dat[$bits(FP2_TYPE)+DAT_BITS-1:DAT_BITS]};
+      if (i_pnt_scl_if.val) begin
+        i_pnt_scl_int_if.val <= i_pnt_scl_if.eop;
+        i_pnt_scl_int_if.dat <= {i_pnt_scl_if.dat, i_pnt_scl_int_if.dat[$bits(FP2_TYPE)+DAT_BITS-1:DAT_BITS]};
+      end
       i_pnt_scl_int_if.ctl <= i_pnt_scl_if.ctl;
-      i_pnt_scl_int_if.val <= i_pnt_scl_if.eop;
     end
     
     if (~o_pnt_if.val || (o_pnt_if.val && o_pnt_if.rdy)) begin
@@ -154,7 +156,7 @@ always_ff @ (posedge i_clk) begin
             // This is the state used when collapsing multiple core's results together
               add_val_i <= 1;
               i_pnt_scl_int_if.rdy <= 1; 
-              add_dat_i <= i_pnt_scl_int_if.dat[$bits(FE_TYPE) +: $bits(FP2_TYPE)];
+              add_dat_i <= i_pnt_scl_int_if.dat[0 +: $bits(FP2_TYPE)];
               o_pnt_int_if.val <= 0;
               key_cnt <= 0;
               in_cnt <= i_num_in-1;

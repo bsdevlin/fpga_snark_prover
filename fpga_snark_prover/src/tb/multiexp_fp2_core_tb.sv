@@ -24,7 +24,7 @@ import common_pkg::*;
 
 localparam CLK_PERIOD = 100;
 
-localparam NUM_IN = 1;
+localparam NUM_IN = 4;
 localparam DAT_BITS = $bits(fe_t);
 localparam KEY_BITS = $bits(P);
 localparam CTL_BITS = 9;
@@ -137,10 +137,12 @@ begin
   join
 
   out = get_dat;
-
+  
   assert(fp2_to_affine(fp2_jb_from_mont(out), 0) == expected) else begin
-    $display("Expected: 0x%0x", expected);
-    $display("Was:      0x%0x", fp2_to_affine(fp2_jb_from_mont(out)), 0);
+    $display("Expected:");
+    print_fp2_af_point(expected);
+    $display("Was:");
+    print_fp2_af_point(fp2_to_affine(fp2_jb_from_mont(out), 0));
     $fatal(1, "ERROR: Output did not match");
   end
 

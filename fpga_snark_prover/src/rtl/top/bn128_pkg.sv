@@ -495,7 +495,7 @@ package bn128_pkg;
     jb_from_mont.z = fe_from_mont(a.z);
   endfunction  
   
-  function fp2_jb_point_t fp2_jb_from_mont(jb_point_t a);
+  function fp2_jb_point_t fp2_jb_from_mont(fp2_jb_point_t a);
     fp2_jb_from_mont.x = fe2_from_mont(a.x);
     fp2_jb_from_mont.y = fe2_from_mont(a.y);
     fp2_jb_from_mont.z = fe2_from_mont(a.z);
