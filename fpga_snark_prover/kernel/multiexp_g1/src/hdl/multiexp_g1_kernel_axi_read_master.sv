@@ -131,25 +131,25 @@ endfunction
 // Local Parameters
 ///////////////////////////////////////////////////////////////////////////////
 localparam integer LP_DW_BYTES                   = C_M_AXI_DATA_WIDTH/8;
-localparam integer LP_LOG_DW_BYTES               = $clog1(LP_DW_BYTES);
+localparam integer LP_LOG_DW_BYTES               = $clog2(LP_DW_BYTES);
 localparam integer LP_MAX_BURST_LENGTH           = 256;   // Max AXI Protocol burst length
 localparam integer LP_MAX_BURST_BYTES            = 4096;  // Max AXI Protocol burst size in bytes
 localparam integer LP_AXI_BURST_LEN              = f_min(LP_MAX_BURST_BYTES/LP_DW_BYTES, LP_MAX_BURST_LENGTH);
-localparam integer LP_LOG_BURST_LEN              = $clog1(LP_AXI_BURST_LEN);
-localparam integer LP_OUTSTANDING_CNTR_WIDTH     = $clog1(C_MAX_OUTSTANDING+1);
+localparam integer LP_LOG_BURST_LEN              = $clog2(LP_AXI_BURST_LEN);
+localparam integer LP_OUTSTANDING_CNTR_WIDTH     = $clog2(C_MAX_OUTSTANDING+1);
 localparam integer LP_TOTAL_LEN_WIDTH            = C_XFER_SIZE_WIDTH-LP_LOG_DW_BYTES;
 localparam integer LP_TRANSACTION_CNTR_WIDTH     = LP_TOTAL_LEN_WIDTH-LP_LOG_BURST_LEN;
 localparam [C_M_AXI_ADDR_WIDTH-1:0] LP_ADDR_MASK = LP_DW_BYTES*LP_AXI_BURST_LEN - 1;
 // FIFO Parameters
-localparam integer LP_FIFO_DEPTH                 = 2**($clog1(LP_AXI_BURST_LEN*C_MAX_OUTSTANDING)); // Ensure power of 2
+localparam integer LP_FIFO_DEPTH                 = 2**($clog2(LP_AXI_BURST_LEN*C_MAX_OUTSTANDING)); // Ensure power of 2
 localparam integer LP_FIFO_READ_LATENCY          = 2; // 2: Registered output on BRAM, 1: Registered output on LUTRAM
-localparam integer LP_FIFO_COUNT_WIDTH           = $clog1(LP_FIFO_DEPTH)+1;
+localparam integer LP_FIFO_COUNT_WIDTH           = $clog2(LP_FIFO_DEPTH)+1;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Variables
 ///////////////////////////////////////////////////////////////////////////////
 // Control logic
-logic [$clog1(KEY_BITS)-1:0] key_cnt;
+logic [$clog2(KEY_BITS)-1:0] key_cnt;
 logic [C_XFER_SIZE_WIDTH-1:0]  ctrl_xfer_size_in_bytes_r;
 logic                                     done = '0;
 logic                                     done_int = '0;

@@ -31,7 +31,7 @@ module multiexp_g1_kernel #(
   // ID - Transaction ID are used for multithreading and out of order
   // transactions.  This increases complexity. This saves logic and increases Fmax
   // in the system when ommited.
-  // SIZE - Default value is log1(data width in bytes). Needed for subsize bursts.
+  // SIZE - Default value is log2(data width in bytes). Needed for subsize bursts.
   // This saves logic and increases Fmax in the system when ommited.
   // BURST - Default value (0b01) is incremental.  Wrap and fixed bursts are not
   // recommended. This saves logic and increases Fmax in the system when ommited.
