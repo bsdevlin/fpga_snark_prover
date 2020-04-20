@@ -1,0 +1,64 @@
+{
+    "name": "Multi exponentiation in G2 (RTL)", 
+    "description": [
+        "Multi exponentiation in G2"
+    ], 
+    "key_concepts": [
+        "RTL Kernel"
+    ], 
+    "targets": [
+        "hw", 
+        "hw_emu"
+    ], 
+    "os": [
+        "Linux"
+    ], 
+    "runtime": [
+        "OpenCL"
+    ], 
+    "gui": false, 
+    "host": {
+        "host_exe": "host", 
+        "compiler": {
+            "sources": [
+                "REPO_DIR/common/includes/xcl2", 
+                "src/host.cpp"
+            ], 
+            "includepaths": [
+                "REPO_DIR/common/includes/xcl2"
+            ]
+        }
+    }, 
+    "containers": [
+        {
+            "accelerators": [
+                {
+                    "kernel_type": "RTL", 
+                    "name": "multiexp_g2_kernel"
+                }
+            ], 
+            "name": "multiexp_g2_kernel"
+        }
+    ], 
+    "launch": [
+        {
+            "cmd_args": "BUILD/multiexp_g2_kernel.xclbin", 
+            "name": "generic launch for all flows"
+        }
+    ], 
+    "config_make": "config.mk", 
+    "output_files": "tmp_kernel_pack* packaged_kernel*",
+    "contributors": [
+        {
+            "url": "https://github.com/bsdevlin/fpga_snark_prover", 
+            "group": "Ben Devlin"
+        }
+    ], 
+    "revision": [
+        {
+            "date": "APR2020", 
+            "version": "1.0", 
+            "description": "Initial Release"
+        }
+    ] 
+}
