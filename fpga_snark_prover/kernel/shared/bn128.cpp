@@ -18,6 +18,7 @@
 #include "bn128.hpp"
 
 Bn128::af_fp_t Bn128::G1_af;
+Bn128::af_fp2_t Bn128::G2_af;
 
 Bn128::Bn128 () {
 	mpz_init_set_str(modulus, BN128_MODULUS, 10);
@@ -56,6 +57,38 @@ Bn128::Bn128 () {
 
 Bn128::af_fp_t Bn128::pt_dbl(af_fp_t p) {
 	af_fp_t result;
+	mpz_t tmp;
+	mpz_init(result.x);
+	mpz_init(result.y);
+	mpz_init(tmp);
+
+	// Check for zero;
+        if (mpz_cmp_ui(p.x, 0) == 0 && mpz_cmp_ui(p.y, 0) == 0) {
+		return p;
+	}
+
+	mpz_mul_ui(tmp, p.y, 2);
+	mpz_invert(tmp, tmp, modulus);
+	mpz_mul_ui(tmp, tmp, 3);
+	mpz_mul(tmp, tmp, p.x);
+	mpz_mul(tmp, tmp, p.x);
+
+	mpz_mul(result.x, tmp, tmp);
+	mpz_sub(result.x, result.x, p.x);
+	mpz_sub(result.x, result.x, p.x);
+
+	mpz_sub(result.y, p.x, result.x);
+	mpz_mul(result.y, result.y, tmp);
+	mpz_sub(result.y, result.y, p.y);
+
+	mpz_mod(result.x, result.x, modulus);
+	mpz_mod(result.y, result.y, modulus);
+
+	return result;
+}
+
+Bn128::af_fp2_t Bn128::pt_dbl(af_fp2_t p) {
+	af_fp2_t result;
 	mpz_t tmp;
 	mpz_init(result.x);
 	mpz_init(result.y);
