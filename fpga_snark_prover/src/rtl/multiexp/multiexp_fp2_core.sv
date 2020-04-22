@@ -181,7 +181,7 @@ always_ff @ (posedge i_clk) begin
         i_pnt_scl_int_if.rdy <= 1;
         if (i_pnt_scl_int_if.val && i_pnt_scl_int_if.rdy) begin
           i_pnt_scl_int_if.rdy <= 0;
-          if (i_pnt_scl_int_if.dat[key_cnt] == 1) begin
+          if (i_pnt_scl_int_if.dat[KEY_BITS-1] == 1) begin
             add_val_i <= 1;
             add_dat_i <= i_pnt_scl_int_if.dat[$bits(FE_TYPE) +: $bits(FP2_TYPE)];
             state <= ADD_WAIT;

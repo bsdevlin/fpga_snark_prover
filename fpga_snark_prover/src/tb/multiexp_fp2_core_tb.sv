@@ -105,6 +105,7 @@ begin
   logic [common_pkg::MAX_SIM_BYTS*8-1:0] get_dat;
   fp2_jb_point_t out;
   fp2_af_point_t expected;
+  fe_t new_s;
   cnt = DAT_BITS-1;
   
   in_p = new[NUM_IN];
@@ -126,7 +127,8 @@ begin
   fork
     for(int j = 0; j < DAT_BITS; j++) begin
       for (int i = 0; i < NUM_IN; i++) begin
-        i_pnt_scl_if.put_stream({in_p[i], in_s[i]}, (DAT_IN0+7)/8, 0);
+        new_s = in_s[i] << j;
+        i_pnt_scl_if.put_stream({in_p[i], new_s}, (DAT_IN0+7)/8, 0);
       end
       cnt--;
     end
