@@ -30,10 +30,8 @@ logic clk, rst;
 
 localparam DAT_IN2 = $bits(fp2_jb_point_t);
 
-fp2_jb_point_t i_p, o_p;
-
-if_axi_stream #(.DAT_BYTS((DAT_IN2+7)/8), .CTL_BITS(CTL_BITS)) i_pnt_if (clk);
-if_axi_stream #(.DAT_BYTS((DAT_IN2+7)/8), .CTL_BITS(CTL_BITS)) o_pnt_if (clk);
+if_axi_stream #(.DAT_BYTS((DAT_BITS0+7)/8), .CTL_BITS(CTL_BITS)) i_pnt_if (clk);
+if_axi_stream #(.DAT_BYTS((DAT_BITS0+7)/8), .CTL_BITS(CTL_BITS)) o_pnt_if (clk);
 
 if_axi_stream #(.DAT_BITS(DAT_BITS0), .CTL_BITS(CTL_BITS))   add_if_i [2:0] (clk);
 if_axi_stream #(.DAT_BITS(2*DAT_BITS0), .CTL_BITS(CTL_BITS)) add_if_o [2:0](clk);
@@ -44,12 +42,6 @@ if_axi_stream #(.DAT_BITS(2*DAT_BITS0), .CTL_BITS(CTL_BITS)) mul_fe2_if_o (clk);
 if_axi_stream #(.DAT_BITS(DAT_BITS0), .CTL_BITS(CTL_BITS))   mul_if_i (clk);
 if_axi_stream #(.DAT_BITS(2*DAT_BITS0), .CTL_BITS(CTL_BITS)) mul_if_o (clk);
 
-always_comb begin
-  i_p = i_pnt_if.dat[0 +: DAT_IN2];
-  o_pnt_if.dat = o_p;
-  o_pnt_if.sop = 1;
-  o_pnt_if.eop = 1;
-end
 
 initial begin
   rst = 0;
@@ -72,13 +64,8 @@ ec_fpn_dbl #(
 ec_fpn_dbl (
   .i_clk ( clk ), 
   .i_rst ( rst ),
-  .i_p ( i_p ),
-  .i_val ( i_pnt_if.val ),
-  .o_rdy ( i_pnt_if.rdy ),
-  .o_p ( o_p ),
-  .i_rdy ( o_pnt_if.rdy ),
-  .o_val ( o_pnt_if.val ),
-  .o_err ( o_pnt_if.err ),
+  .i_pt_if ( i_pnt_if ),
+  .o_pt_if ( o_pnt_if ),
   .o_mul_if ( mul_fe2_if_o ),
   .i_mul_if ( mul_fe2_if_i ),
   .o_add_if ( add_if_o[0] ),

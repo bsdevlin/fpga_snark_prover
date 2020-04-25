@@ -24,7 +24,7 @@ import common_pkg::*;
 
 localparam CLK_PERIOD = 100;
 
-localparam NUM_IN = 4;
+localparam NUM_IN = 1;
 localparam DAT_BITS = $bits(fe_t);
 localparam KEY_BITS = $bits(P);
 localparam CTL_BITS = 9;
@@ -155,7 +155,7 @@ endtask;
 
 
 initial begin
-
+  num_in = 0;
   i_pnt_scl_if.reset_source();
   o_pnt_if.rdy = 0;
   

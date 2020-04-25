@@ -32,10 +32,11 @@ logic clk, rst;
 
 localparam DAT_IN2 = $bits(fp2_jb_point_t);
 
-fp2_jb_point_t i_p1, i_p2, o_p;
 
-if_axi_stream #(.DAT_BYTS((2*DAT_IN2+7)/8), .CTL_BITS(CTL_BITS)) i_pnt_if (clk);
-if_axi_stream #(.DAT_BYTS((DAT_IN2+7)/8), .CTL_BITS(CTL_BITS)) o_pnt_if (clk);
+if_axi_stream #(.DAT_BYTS((DAT_BITS0+7)/8), .CTL_BITS(CTL_BITS)) i_pnt0_if (clk);
+if_axi_stream #(.DAT_BYTS((DAT_BITS0+7)/8), .CTL_BITS(CTL_BITS)) i_pnt1_if (clk);
+
+if_axi_stream #(.DAT_BYTS((DAT_BITS0+7)/8), .CTL_BITS(CTL_BITS)) o_pnt_if (clk);
 
 if_axi_stream #(.DAT_BITS(DAT_BITS0), .CTL_BITS(CTL_BITS))   add_if_i [2:0] (clk);
 if_axi_stream #(.DAT_BITS(2*DAT_BITS0), .CTL_BITS(CTL_BITS)) add_if_o [2:0](clk);
@@ -45,14 +46,6 @@ if_axi_stream #(.DAT_BITS(DAT_BITS0), .CTL_BITS(CTL_BITS))   mul_fe2_if_i (clk);
 if_axi_stream #(.DAT_BITS(2*DAT_BITS0), .CTL_BITS(CTL_BITS)) mul_fe2_if_o (clk);
 if_axi_stream #(.DAT_BITS(DAT_BITS0), .CTL_BITS(CTL_BITS))   mul_if_i (clk);
 if_axi_stream #(.DAT_BITS(2*DAT_BITS0), .CTL_BITS(CTL_BITS)) mul_if_o (clk);
-
-always_comb begin
-  i_p1 = i_pnt_if.dat[0 +: DAT_IN2];
-  i_p2 = i_pnt_if.dat[DAT_IN2 +: DAT_IN2];
-  o_pnt_if.dat = o_p;
-  o_pnt_if.sop = 1;
-  o_pnt_if.eop = 1;
-end
 
 initial begin
   rst = 0;
@@ -64,6 +57,7 @@ initial begin
   forever #(CLK_PERIOD/2) clk = ~clk;
 end
 
+
 ec_fpn_add #(
   .FP_TYPE ( fp2_jb_point_t ),
   .FE_TYPE ( fe2_t          ),
@@ -72,14 +66,9 @@ ec_fpn_add #(
 ec_fpn_add (
   .i_clk ( clk ), 
   .i_rst ( rst ),
-  .i_p1 ( i_p1 ),
-  .i_p2 ( i_p2 ),
-  .i_val ( i_pnt_if.val ),
-  .o_rdy ( i_pnt_if.rdy ),
-  .o_p ( o_p ),
-  .i_rdy ( o_pnt_if.rdy ),
-  .o_val ( o_pnt_if.val ),
-  .o_err ( o_pnt_if.err ),
+  .i_pt1_if ( i_pnt0_if ),
+  .i_pt2_if ( i_pnt1_if ),
+  .o_pt_if ( o_pnt_if ),
   .o_mul_if ( mul_fe2_if_o ),
   .i_mul_if ( mul_fe2_if_i ),
   .o_add_if ( add_if_o[0] ),
@@ -201,7 +190,8 @@ begin
     expected = add_fp2_jb_point(a, b);
     
     fork
-      i_pnt_if.put_stream({b, a}, (2*DAT_IN2+7)/8, 0);
+      i_pnt0_if.put_stream(a, (DAT_IN2+7)/8, 0);
+      i_pnt1_if.put_stream(b, (DAT_IN2+7)/8, 0);
       o_pnt_if.get_stream(get_dat, get_len, 0);
     join
     
@@ -223,7 +213,8 @@ endtask;
 
 initial begin
 
-  i_pnt_if.reset_source();
+  i_pnt0_if.reset_source();
+  i_pnt1_if.reset_source();
   o_pnt_if.rdy = 0;
 
   #(100*CLK_PERIOD);

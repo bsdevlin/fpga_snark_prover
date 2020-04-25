@@ -77,7 +77,7 @@ adder_pipe # (
   .P       ( 0            ) ,
   .BITS    ( DAT_BITS*2   ),
   .CTL_BITS( CTL_BITS_INT ),
-  .LEVEL   ( 2            )
+  .LEVEL   ( 4            )
 )
 adder_pipe (
   .i_clk ( i_clk ),
