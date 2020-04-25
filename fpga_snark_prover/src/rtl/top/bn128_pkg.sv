@@ -30,7 +30,7 @@ package bn128_pkg;
   localparam NUM_G1_MULTIEXP_ARITH = 1;
   
   // These parameters change the size and performance of the multi_exp (G2) kernel
-  localparam NUM_G2_MULTIEXP_CORES = 10;
+  localparam NUM_G2_MULTIEXP_CORES = 8;
   localparam NUM_G2_MULTIEXP_ARITH = 1;
   
 
