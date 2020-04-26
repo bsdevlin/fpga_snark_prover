@@ -25,7 +25,7 @@ import common_pkg::*;
 localparam CLK_PERIOD = 100;
 
 localparam NUM_IN = 4;
-localparam NUM_CORES = 2;
+localparam NUM_CORES = 4;
 localparam NUM_ARITH = 1;
 
 localparam DAT_BITS = $bits(fe_t);
@@ -102,7 +102,7 @@ begin
     $display("Key 0x%x", in_s[i]);
   end
 
-  expected = fp2_to_affine(fp2_jb_from_mont(fp2_multiexp_batch(in_s, in_p)), 0);
+  expected = fp2_to_affine(fp2_jb_from_mont(fp2_multiexp_parallel_batch(NUM_IN, in_s, in_p)), 0);
 
   start_time = $time;
   fork
@@ -135,7 +135,7 @@ end
 endtask;
 
 initial begin
-
+  
   i_pnt_scl_if.reset_source();
   o_pnt_if.rdy = 0;
 

@@ -33,5 +33,7 @@ Each goal will have a corresponding RTL top level and source in the ```fpga_snar
 pre-compiled (along with instructions to compile the binary if needed). The kernels will be able to run in a Amazon AWS Vivado Vitis (SDAccel) environment as accelerators,
 interfaced to user logic (look in ```fpga_snark_prover\kernel``` to see this). The kernels have access to 4x 16GB DDR4 banks when run on Amazon AWS F1 FPGA instances.
 
+More information on FPGA kernels can be found here in the Xilinx Vitis user guide [here](https://www.xilinx.com/support/documentation/sw_manuals/xilinx2019_2/ug1393-vitis-application-acceleration.pdf).
+
 You can also use Vivado to modify and simulate the RTL by creating a project and adding all the sources from each folder, and then running the testbenches in the /tb/ folders.
 

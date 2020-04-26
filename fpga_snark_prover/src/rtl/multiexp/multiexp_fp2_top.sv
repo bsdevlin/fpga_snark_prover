@@ -86,6 +86,8 @@ always_comb begin
     pnt_scl_in_if.copy_if_comb(pnt_scl_if_add.dat, pnt_scl_if_add.val, pnt_scl_if_add.sop, pnt_scl_if_add.eop, pnt_scl_if_add.err, pnt_scl_if_add.mod, pnt_scl_if_add.ctl);
   end else begin
     pnt_scl_in_if.copy_if_comb(i_pnt_scl_if.dat, i_pnt_scl_if.val && (state == MULTI_EXP), i_pnt_scl_if.sop, i_pnt_scl_if.eop, i_pnt_scl_if.err, i_pnt_scl_if.mod, i_pnt_scl_if.ctl);
+    if (i_pnt_scl_if.sop)
+      pnt_scl_in_if.dat = i_pnt_scl_if.dat << key_cnt; // Shift on the first word (scalar) so that multiexp_cores don't need to
     pnt_scl_in_if.ctl[CTL_BITS +: LOG2_CORES] = core_sel; 
   end     
 end

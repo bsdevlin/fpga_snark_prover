@@ -1,5 +1,8 @@
 /*
-  This performs point doubling on a prime field Fp using jacobian points.
+  This performs point doubling on a prime field Fp_n using jacobian points.
+  
+  Inputs and outputs are all AXI streams with the data width being the lowest element (FE_TYPE_ARITH),
+  in order to help with timing.
 
   Copyright (C) 2019  Benjamin Devlin and Zcash Foundation
 
@@ -29,14 +32,9 @@ module ec_fpn_dbl
 )(
   input i_clk, i_rst,
   // Input point
-  input FP_TYPE i_p,
-  input logic   i_val,
-  output logic  o_rdy,
+  if_axi_stream.sink   i_pt_if,
   // Output point
-  output FP_TYPE o_p,
-  input logic    i_rdy,
-  output logic   o_val,
-  output logic   o_err,
+  if_axi_stream.source o_pt_if,
   // Interface to multiplier (mod P)
   if_axi_stream.source o_mul_if,
   if_axi_stream.sink   i_mul_if,
@@ -48,7 +46,6 @@ module ec_fpn_dbl
   if_axi_stream.sink   i_sub_if
 );
 
-localparam CHK_INPUT = 0;
 /*
  * These are the equations that need to be computed, they are issued as variables
  * become valid. We have a bitmask to track what equation results are valid which
@@ -76,21 +73,26 @@ localparam ARITH_BITS = $bits(FE_TYPE_ARITH);
 localparam DIV = $bits(FE_TYPE)/ARITH_BITS;
 localparam DIV_LOG2 = DIV == 1 ? 1 : $clog2(DIV);
 
-logic [DIV_LOG2-1:0] add_o_cnt, sub_o_cnt, add_i_cnt, sub_i_cnt, mul_i_cnt, mul_o_cnt;
+logic [DIV_LOG2-1:0] add_o_cnt, sub_o_cnt, mul_o_cnt;
+logic [2:0] o_cnt;
 logic mul_en, add_en, sub_en;
 logic [5:0] nxt_mul, nxt_add, nxt_sub;
 
 // Temporary variables
 FE_TYPE A, B, C, D, E;
-FP_TYPE i_p_l;
+FP_TYPE i_p_l, o_p;
+logic [$bits(FP_TYPE)-1:0] i_p_l_flat, o_p_flat;
+logic [DIV-1:0] zero_chk;
 
+always_comb begin
+  i_p_l = i_p_l_flat;
+end
 
 enum {IDLE, START, FINISHED} state;
 always_ff @ (posedge i_clk) begin
   if (i_rst) begin
-    o_val <= 0;
-    o_rdy <= 0;
-    o_p <= 0;
+    i_pt_if.rdy <= 0;
+    o_pt_if.reset_source();
     o_mul_if.copy_if(0, 0, 1, 1, 0, 0, 0);
     o_add_if.copy_if(0, 0, 1, 1, 0, 0, 0);
     o_sub_if.copy_if(0, 0, 1, 1, 0, 0, 0);
@@ -100,16 +102,18 @@ always_ff @ (posedge i_clk) begin
     eq_val <= 0;
     state <= IDLE;
     eq_wait <= 0;
-    i_p_l <= 0;
-    o_err <= 0;
+    i_p_l_flat <= 0;
+    o_p_flat <= 0;
+    o_p <= 0;
     A <= 0;
     B <= 0;
     C <= 0;
     D <= 0;
     E <= 0;
-    {add_o_cnt, sub_o_cnt, add_i_cnt, sub_i_cnt, mul_i_cnt, mul_o_cnt} <= 0;
+    {add_o_cnt, sub_o_cnt, mul_o_cnt, o_cnt} <= 0;
     {mul_en, add_en, sub_en} <= 0;
     {nxt_mul, nxt_add, nxt_sub} <= 0;  
+    zero_chk <= 0;
   end else begin
     
     i_mul_if.rdy <= 1;
@@ -119,36 +123,32 @@ always_ff @ (posedge i_clk) begin
     if (o_mul_if.rdy) o_mul_if.val <= 0;
     if (o_add_if.rdy) o_add_if.val <= 0;
     if (o_sub_if.rdy) o_sub_if.val <= 0;
-    if (i_rdy) begin
-      o_val <= 0;
-      o_err <= 0;
+    if (o_pt_if.rdy) begin
+      o_pt_if.val <= 0;
+      if (o_pt_if.eop) o_pt_if.err <= 0;
     end
 
     case(state)
       {IDLE}: begin
-        o_rdy <= 1;
+        i_pt_if.rdy <= 1;
         eq_val <= 0;
         eq_wait <= 0;
-        o_err <= 0;
-        i_p_l <= i_p;
+        o_pt_if.err <= 0;
         A <= 0;
         B <= 0;
         C <= 0;
         D <= 0;
         E <= 0;
+        zero_chk <= 0;
         {mul_en, add_en, sub_en} <= 0;
         {nxt_mul, nxt_add, nxt_sub} <= 0;        
-        o_val <= 0;
-        if (i_val && o_rdy) begin
-          state <= START;
-          o_rdy <= 0;
-          if (CHK_INPUT == 1) begin
-            if (i_p.z == 0) begin
-              o_p <= i_p;
-              o_val <= 1;
-              state <= FINISHED;
-            end
-          end
+        if (i_pt_if.val && i_pt_if.rdy) begin
+          i_p_l_flat <= {i_pt_if.dat, i_p_l_flat[$bits(FP_TYPE)-1:ARITH_BITS]};
+          zero_chk <= {zero_chk, i_pt_if.dat == 0};
+          if (i_pt_if.eop) begin
+              state <= START;
+              i_pt_if.rdy <= 0;
+           end
         end
       end
       // Just a big if tree where we issue equations if the required inputs
@@ -156,58 +156,57 @@ always_ff @ (posedge i_clk) begin
       {START}: begin
         i_mul_if.rdy <= 1;
         
+        if (zero_chk) begin
+          state <= FINISHED;
+          o_p_flat <= 0;
+        end
+        
         if (~sub_en) get_next_sub();
         if (~add_en) get_next_add();
         if (~mul_en) get_next_mul();
 
         // Check any results from multiplier
         if (i_mul_if.val && i_mul_if.rdy) begin
-          mul_i_cnt <= mul_i_cnt + 1;
-          if (mul_i_cnt == DIV-1) begin
+          if (i_mul_if.eop) begin
             eq_val[i_mul_if.ctl[5:0]] <= 1;
-            mul_i_cnt <= 0;
           end
           case(i_mul_if.ctl[5:0]) inside
-            0: A[mul_i_cnt] <= i_mul_if.dat;
-            1: B[mul_i_cnt] <= i_mul_if.dat;
-            2: B[mul_i_cnt] <= i_mul_if.dat;
-            3: C[mul_i_cnt] <= i_mul_if.dat;
-            4: C[mul_i_cnt] <= i_mul_if.dat;
-            5: D[mul_i_cnt] <= i_mul_if.dat;
-            6: D[mul_i_cnt] <= i_mul_if.dat;
-            7: o_p.x[mul_i_cnt] <= i_mul_if.dat;
-            11: o_p.y[mul_i_cnt] <= i_mul_if.dat;
-            14: o_p.z[mul_i_cnt] <= i_mul_if.dat;
-            default: o_err <= 1;
+            0: A <= {i_mul_if.dat, A[1]};
+            1: B <= {i_mul_if.dat, B[1]};
+            2: B <= {i_mul_if.dat, B[1]};
+            3: C <= {i_mul_if.dat, C[1]};
+            4: C <= {i_mul_if.dat, C[1]};
+            5: D <= {i_mul_if.dat, D[1]};
+            6: D <= {i_mul_if.dat, D[1]};
+            7: o_p.x <= {i_mul_if.dat, o_p.x[1]};
+            11: o_p.y <= {i_mul_if.dat, o_p.y[1]};
+            14: o_p.z <= {i_mul_if.dat, o_p.z[1]};
+            default: o_pt_if.err <= 1;
           endcase
         end
 
         // Check any results from adder
         if (i_add_if.val && i_add_if.rdy) begin
-          add_i_cnt <= add_i_cnt + 1;
-          if (add_i_cnt == DIV-1) begin
+          if (i_add_if.eop) begin
             eq_val[i_add_if.ctl[5:0]] <= 1;
-            add_i_cnt <= 0;
           end
           case(i_add_if.ctl[5:0]) inside
-            8: E[add_i_cnt] <= i_add_if.dat;
-            13: o_p.z[add_i_cnt] <= i_add_if.dat;
-            default: o_err <= 1;
+            8: E <= {i_add_if.dat, E[1]};
+            13: o_p.z <= {i_add_if.dat, o_p.z[1]};
+            default: o_pt_if.err <= 1;
           endcase
         end
 
         // Check any results from subtractor
         if (i_sub_if.val && i_sub_if.rdy) begin
-          sub_i_cnt <= sub_i_cnt + 1;
-          if (sub_i_cnt == DIV-1) begin
+          if (i_sub_if.eop) begin
             eq_val[i_sub_if.ctl[5:0]] <= 1;
-            sub_i_cnt <= 0;
           end
           case(i_sub_if.ctl[5:0]) inside
-            9: o_p.x[sub_i_cnt] <= i_sub_if.dat;
-            10: o_p.y[sub_i_cnt] <= i_sub_if.dat;
-            12: o_p.y[sub_i_cnt] <= i_sub_if.dat;
-            default: o_err <= 1;
+            9: o_p.x <= {i_sub_if.dat, o_p.x[1]};
+            10: o_p.y <= {i_sub_if.dat, o_p.y[1]};
+            12: o_p.y <= {i_sub_if.dat, o_p.y[1]};
+            default: o_pt_if.err <= 1;
           endcase
         end
         
@@ -240,22 +239,31 @@ always_ff @ (posedge i_clk) begin
 
         if (&eq_val) begin
           state <= FINISHED;
-          o_val <= 1;
+          o_p_flat <= o_p;
         end
       end
       {FINISHED}: begin
-        if (o_val && i_rdy) begin
-          state <= IDLE;
-          o_val <= 0;
-          o_rdy <= 1;
+        // Stream out point
+        if (~o_pt_if.val || (o_pt_if.val && o_pt_if.rdy)) begin
+          o_pt_if.dat <= o_p_flat;
+          o_p_flat <= o_p_flat >> $bits(FE_TYPE_ARITH);
+          o_pt_if.val <= 1;
+          o_pt_if.sop <= o_cnt == 0;
+          o_pt_if.eop <= o_cnt == 5; 
+          o_cnt <= o_cnt + 1;
+          if (o_cnt == 5) begin
+            o_cnt <= 0;
+            state <= IDLE;
+            i_pt_if.rdy <= 1;
+          end
         end
       end
     endcase
 
-    if (o_err & ~o_val) begin
-      o_val <= 1;
-      if (o_val && i_rdy) begin
-        o_err <= 0;
+    if (o_pt_if.err & ~o_pt_if.val) begin
+      o_pt_if.val <= 1;
+      if (o_pt_if.rdy) begin
+        o_pt_if.err <= 0;
         state <= IDLE;
       end
     end
@@ -320,13 +328,13 @@ endtask
 
 task get_next_mul();
   mul_en <= 1;
-  if (~eq_wait[0])
+  if (~eq_wait[0] && ~&zero_chk)
     nxt_mul <= 0;
   else if (eq_val[0] && ~eq_wait[1])
     nxt_mul <= 1;
   else if (eq_val[0] && ~eq_wait[3])
     nxt_mul <= 3;
-  else if (~eq_wait[5])
+  else if (~eq_wait[5] && ~&zero_chk)
     nxt_mul <= 5;
   else if (eq_val[5] && ~eq_wait[6])
     nxt_mul <= 6;
@@ -360,7 +368,7 @@ task get_next_add();
   add_en <= 1;
   if (eq_val[2] && ~eq_wait[8])
     nxt_add <= 8;
-  else if (~eq_wait[13])
+  else if (~eq_wait[13] && ~&zero_chk)
     nxt_add <= 13;
   else
     add_en <= 0;

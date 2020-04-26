@@ -262,6 +262,9 @@ always @(posedge ACLK) begin
                 ADDR_RESULT_P_DATA_1: begin
                     rdata <= int_result_p[63:32];
                 end
+                ADDR_NUM_CORES: begin
+                  rdata <= bn128_pkg::NUM_G1_MULTIEXP_CORES;
+                end                
             endcase
         end
     end

@@ -405,6 +405,55 @@ package bn128_pkg;
     res = res_int[0];
     return res;
   endfunction  
+  
+  // Function that emulates how multi-exp is calculated on the FPGA using parallel batching
+  function fp2_jb_point_t fp2_multiexp_parallel_batch(input int NUM_CORES, input logic [DAT_BITS-1:0] s [], input fp2_jb_point_t p []);
+    logic [DAT_BITS-1:0] s_int [][];
+    fp2_jb_point_t  p_int [][];
+    fp2_jb_point_t res_int [];
+    fp2_jb_point_t res;
+    int incr;
+    p_int = new[NUM_CORES];
+    s_int = new[NUM_CORES];
+    res_int = new[NUM_CORES];
+    
+    // Split into parallel core arrays
+    for (int i = 0; i < NUM_CORES; i++) begin
+      p_int[i] = new[s.size()/NUM_CORES];
+      s_int[i] = new[s.size()/NUM_CORES];
+      incr = 0;
+      for (int j = i; j < s.size(); j=j+NUM_CORES) begin
+        p_int[i][incr] = p[j];
+        s_int[i][incr] = s[j];
+        incr++;
+      end
+    end
+    
+    for (int i = 0; i < NUM_CORES; i++) begin
+      res_int[i] = fp2_multiexp_batch(s_int[i], p_int[i]);
+      if (VERBOSE == 1) begin
+        $display("point res %d", i);
+        for (int j = 0; j < 2; j++) $display("x c%d:0x%h", j, res_int[i].x[j]);
+        for (int j = 0; j < 2; j++) $display("y c%d:0x%h", j, res_int[i].y[j]);
+        for (int j = 0; j < 2; j++) $display("z c%d:0x%h", j, res_int[i].z[j]);
+      end  
+    end
+    res = 0;
+    // Now we combine results log2
+    for (int stage = NUM_CORES; stage > 1; stage=stage/2) begin
+       for (int i = 0; i < stage/2; i=i+1) begin
+         res_int[i] = add_fp2_jb_point(res_int[i], res_int[i+(stage/2)]);
+         if (VERBOSE == 1) begin
+           $display("tree point res %d stage %d", i, stage);
+           for (int j = 0; j < 2; j++) $display("x c%d:0x%h", j, res_int[i].x[j]);
+           for (int j = 0; j < 2; j++) $display("y c%d:0x%h", j, res_int[i].y[j]);
+           for (int j = 0; j < 2; j++) $display("z c%d:0x%h", j, res_int[i].z[j]);
+         end
+       end
+    end
+    res = res_int[0];
+    return res;
+  endfunction    
 
   // Function for G1 multiexp, using batch doubles and window method
   function jb_point_t multiexp_window(input logic [DAT_BITS-1:0] s [], jb_point_t p []);
