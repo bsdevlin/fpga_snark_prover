@@ -279,8 +279,8 @@ namespace Bn128 {
 	template <int N>
 	static void af_export(void* data, af_p_t<f_t<N>> af) {
 		for (int i = 0; i < N; i++) {
-			mpz_export(data + i*BN128_BITS/8, NULL, -1, BN128_BITS/8, -1, 0, af.x.c[i]);
-			mpz_export((void*)((char*)data + N*BN128_BITS/8 + i*BN128_BITS/8), NULL, -1, BN128_BITS/8, -1, 0, af.y.c[i]);
+			mpz_export((void*)((uint8_t*)data + i*BN128_BITS/8), NULL, -1, BN128_BITS/8, -1, 0, af.x.c[i]);
+			mpz_export((void*)((uint8_t*)data + N*BN128_BITS/8 + i*BN128_BITS/8), NULL, -1, BN128_BITS/8, -1, 0, af.y.c[i]);
 		}
 	};
 
@@ -288,7 +288,7 @@ namespace Bn128 {
 	template <int N>
 	static void jb_import(jb_p_t<f_t<N>> &jb, void* data) {
 		for (int i = 0; i < N; i++) {
-			mpz_import(jb.x.c[i], 1, -1, BN128_BITS/8, -1, 0, data + i*BN128_BITS/8);
+			mpz_import(jb.x.c[i], 1, -1, BN128_BITS/8, -1, 0, (void*)((uint8_t*)data + i*BN128_BITS/8));
 			mpz_import(jb.y.c[i], 1, -1, BN128_BITS/8, -1, 0, (void*)((uint8_t*)data + N*BN128_BITS/8 + i*BN128_BITS/8));
 			mpz_import(jb.z.c[i], 1, -1, BN128_BITS/8, -1, 0, (void*)((uint8_t*)data + N*2*BN128_BITS/8 + i*BN128_BITS/8));
 		}
