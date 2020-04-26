@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
 	cl::CommandQueue q;
 	cl::Context context;
 	cl::Kernel krnl;
+	Bn128::init();
 
 	//Allocate Memory in Host Memory
 	size_t scalar_vector_size_bytes = BN128_BITS/8 * num_in;

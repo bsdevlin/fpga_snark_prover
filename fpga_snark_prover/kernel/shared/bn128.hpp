@@ -2,7 +2,10 @@
   This provides helper functions for interfacing with the FPGA kernels and transforming
   data into and out of Montgomery and/or Jacobian form coordinates.
 
-  We also implement some basic elliptic curve operations that can be used for verification.
+  We also implement some basic elliptic curve operations that can be used for verification 
+  but are not optimized for speed.
+
+  You need to call init() before you can use these functions.
 
   Copyright (C) 2019  Benjamin Devlin
 
@@ -32,8 +35,16 @@
 #define BN128_BITS 256
 #define BN128_MODULUS "21888242871839275222246405745257275088696311157297823662689037894645226208583"
 
-class Bn128 {
-public:
+namespace Bn128 {
+
+	static mpz_t modulus;
+	static mpz_t reciprocal_sq;
+	static mpz_t reducer;
+	static mpz_t mask;
+	static mpz_t factor;
+	static mpz_t converted_one;
+	static mpz_t reciprocal;
+
 	template<int T>
 	struct f_t {
 		mpz_t c [T];
@@ -219,16 +230,9 @@ public:
 
 	static af_p_t<f_t<1>> G1_af;
 	static af_p_t<f_t<2>> G2_af;
-	static mpz_t modulus;
-	static mpz_t reciprocal_sq;
-	static mpz_t reducer;
-	static mpz_t mask;
-	static mpz_t factor;
-	static mpz_t converted_one;
-	static mpz_t reciprocal;
 
-	/* The constructor sets up the montgomery values and generator points. */
-	Bn128() {
+	/* This sets up the montgomery values and generator points, must be called at the very start. */
+	void init () {
 		mpz_init_set_str(modulus, BN128_MODULUS, 10);
 
 		mpz_init_set_ui(reducer, 1);
@@ -334,16 +338,5 @@ public:
 		return res;
 	}
 };
-
-mpz_t Bn128::modulus;
-mpz_t Bn128::reciprocal_sq;
-mpz_t Bn128::reducer;
-mpz_t Bn128::mask;
-mpz_t Bn128::factor;
-mpz_t Bn128::converted_one;
-mpz_t Bn128::reciprocal;
-
-Bn128::af_p_t<Bn128::f_t<1>> Bn128::G1_af;
-Bn128::af_p_t<Bn128::f_t<2>> Bn128::G2_af;
 
 #endif

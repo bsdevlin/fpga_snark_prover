@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
 	cl::CommandQueue q;
 	cl::Context context;
 	cl::Kernel krnl;
+	Bn128::init();
 
 	//Allocate Memory in Host Memory
 	size_t scalar_vector_size_bytes = BN128_BITS/8 * num_in;
@@ -119,7 +120,7 @@ int main(int argc, char **argv) {
 			std::cout << "Failed to program device[" << i << "] with xclbin file!\n";
 		} else {
 			std::cout << "Device[" << i << "]: program successful!\n";
-			OCL_CHECK(err, krnl = cl::Kernel(program, "multiexp_g1_kernel", &err));
+			OCL_CHECK(err, krnl = cl::Kernel(program, "multiexp_g2_kernel", &err));
 			valid_device++;
 			break; // we break because we found a valid device
 		}
