@@ -3,13 +3,14 @@ Kernels (RTL)
 
 Several kernels have been compiled from the RTL code that allows for easy inclusion into a host.cpp file. Multiple kernels can be linked and 
 exercised depending on what functionality is needed.
-Each kernels operates on DRAM memory on the FPGA, which has 4 DDR banks of 16GB each. When building the kernel will automatically get assigned to a 16GB DDR bank and only able to access that bank - to change this you need to uncomment the ``CLFLAGS += --sp ...`` lines.
+Each kernels operates on DRAM memory on the FPGA, which has 4 DDR banks of 16GB each. When building the kernel will automatically get assigned to a 16GB DDR bank and only able to access that bank - to change this you need to modify the kernel.cdf file.
 
 Each kernel has a **hw_emu** and **hw** makefile targets. 
 The **hw_emu** target create a ``build_output/<kernel_name>.xclbin`` file and runs hardware simulation which will verify the design against the host.cpp. This takes around 5min to build.
 The **hw** target will build the ``build_output/<kernel_name>.xclbin`` and ``.awsxclbin`` file which is used to create an AFI for use on Amazon AWS F1 instances with real hardware. This takes around 4 hours to build.
 
-For more information please see [here](https://github.com/aws/aws-fpga/tree/master/Vitis).
+For more information please see [here](https://github.com/aws/aws-fpga/tree/master/Vitis). This document goes over the accelerator platform and different configuration settings you can change in the kernel.cfg file: [Vitis Unified Software
+Platform Documentation](https://www.xilinx.com/support/documentation/sw_manuals/xilinx2019_2/ug1393-vitis-application-acceleration.pdf).
 
 Each kernel folder contains the following files:
 
