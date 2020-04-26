@@ -1,7 +1,7 @@
 Multi-exponentiation in G1 
 ======================
 
-Each core operates on a subset of the inputs (Mongomery form Jacobian coordinates and scalar pairs), and the inputs are continiously read in a streaming loop.
+Each core operates on a subset of the inputs (Mongomery form Jacobian coordinates and scalar pairs), and the inputs are read in a streaming loop. This means the DDR reads are done back to back and will read in bursts all the input points for each bit in the 256 scalar. Note this does not create a bottle neck in the system due to the actual point operations taking longer than the DDR read.
 If the kernel has been compiled with 16 cores, then each core will get 1/16 of the total inputs. After each core has its final result, they are collapsed into each other log2 - so in the case of 16 cores there would be another 4 stages of point addition done before the final Montgomery form Jacobian coordinate point is streamed back to host.
 
 ## Kernel base performance and area utilization
