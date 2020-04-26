@@ -77,24 +77,22 @@ int main(int argc, char **argv) {
 	std::vector<uint64_t, aligned_allocator<uint64_t>> point_input(point_vector_size_bytes/8);
 	std::vector<uint64_t, aligned_allocator<uint64_t>> hw_result(result_vector_size_bytes/8);
 
-	std::vector<std::pair<Bn128::af_fp_t, mpz_t>> sw_input_points;
-	Bn128::af_fp_t sw_result;
+	Bn128::af_p_t<Bn128::f_t<1>> sw_result;
+	sw_result = 0;
 
 	// Create the test data
 	for (size_t i = 0; i < num_in; i++) {
 		mpz_t s;
 		mpz_init_set_ui(s, i+1);
-		Bn128::af_fp_t p = bn128.pt_mul(Bn128::G1_af, s);
-
-		bn128.af_export((void*)&point_input[i*2*BN128_BITS/64], bn128.to_mont_af(p));
-		bn128.fe_export((void*)&scalar_input[i*BN128_BITS/64], s);
-		sw_input_points.push_back(std::pair<Bn128::af_fp_t, mpz_t>(p, s));
+		Bn128::af_p_t<Bn128::f_t<1>> p = Bn128::G1_af * s;
+		Bn128::af_export((void*)&point_input[i*2*BN128_BITS/64], Bn128::to_mont(p));
+		Bn128::fe_export((void*)&scalar_input[i*BN128_BITS/64], s);
+		sw_result = sw_result + (p * s);
 	}
 
 	// Expected result
-	sw_result = bn128.multi_exp(sw_input_points);
 	printf("Expected result:\n");
-	bn128.print_af(sw_result);
+	sw_result.print();
 
 	// Run the kernel
 
@@ -111,20 +109,15 @@ int main(int argc, char **argv) {
 		auto device = devices[i];
 		// Creating Context and Command Queue for selected Device
 		OCL_CHECK(err, context = cl::Context({device}, NULL, NULL, NULL, &err));
-		OCL_CHECK(err,
-				q = cl::CommandQueue(
-						context, {device}, CL_QUEUE_PROFILING_ENABLE, &err));
+		OCL_CHECK(err, q = cl::CommandQueue(context, {device}, CL_QUEUE_PROFILING_ENABLE, &err));
 
-		std::cout << "Trying to program device[" << i
-				<< "]: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
+		std::cout << "Trying to program device[" << i << "]: " << device.getInfo<CL_DEVICE_NAME>() << std::endl;
 		cl::Program program(context, {device}, bins, NULL, &err);
 		if (err != CL_SUCCESS) {
-			std::cout << "Failed to program device[" << i
-					<< "] with xclbin file!\n";
+			std::cout << "Failed to program device[" << i << "] with xclbin file!\n";
 		} else {
 			std::cout << "Device[" << i << "]: program successful!\n";
-			OCL_CHECK(err,
-					krnl = cl::Kernel(program, "multiexp_g1_kernel", &err));
+			OCL_CHECK(err, krnl = cl::Kernel(program, "multiexp_g1_kernel", &err));
 			valid_device++;
 			break; // we break because we found a valid device
 		}
@@ -135,24 +128,23 @@ int main(int argc, char **argv) {
 	}
 
 	//Allocate Buffer in Global Memory
-	OCL_CHECK(err,
-			cl::Buffer buffer_scalar(context,
-					CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY,
-					scalar_vector_size_bytes,
-					scalar_input.data(),
-					&err));
-	OCL_CHECK(err,
-			cl::Buffer buffer_point(context,
-					CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY,
-					point_vector_size_bytes,
-					point_input.data(),
-					&err));
-	OCL_CHECK(err,
-			cl::Buffer buffer_result(context,
-					CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY,
-					result_vector_size_bytes,
-					hw_result.data(),
-					&err));
+	OCL_CHECK(err, cl::Buffer buffer_scalar(context,
+		       CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY,
+		       scalar_vector_size_bytes,
+		       scalar_input.data(),
+		       &err));
+	OCL_CHECK(err, cl::Buffer buffer_point(context,
+		       CL_MEM_USE_HOST_PTR | CL_MEM_READ_ONLY,
+		       point_vector_size_bytes,
+		       point_input.data(),
+		       &err));
+	OCL_CHECK(err, cl::Buffer buffer_result(context,
+		       CL_MEM_USE_HOST_PTR | CL_MEM_WRITE_ONLY,
+		       result_vector_size_bytes,
+		       hw_result.data(),
+		       &err));
+
+	// Check how many cores - 
 
 	//Set the Kernel Arguments
 	OCL_CHECK(err, err = krnl.setArg(0, num_in));
@@ -161,9 +153,7 @@ int main(int argc, char **argv) {
 	OCL_CHECK(err, err = krnl.setArg(3, buffer_result));
 
 	//Copy input data to device global memory
-	OCL_CHECK(err,
-			err = q.enqueueMigrateMemObjects({buffer_point, buffer_scalar},
-					0 /* 0 means from host*/));
+	OCL_CHECK(err, err = q.enqueueMigrateMemObjects({buffer_point, buffer_scalar},	0 /* 0 means from host*/));
     	struct timespec start_ts;
 	uint64_t compute_time;
     	start_ts = timer_start();
@@ -172,22 +162,21 @@ int main(int argc, char **argv) {
 
 
 	//Copy Result from Device Global Memory to Host Local Memory
-	OCL_CHECK(err,
-			err = q.enqueueMigrateMemObjects({buffer_result},
+	OCL_CHECK(err, err = q.enqueueMigrateMemObjects({buffer_result},
 					CL_MIGRATE_MEM_OBJECT_HOST));
 	OCL_CHECK(err, err = q.finish());
 	compute_time = timer_end(start_ts);
 
 	//OPENCL HOST CODE AREA END
 
-	Bn128::jb_fp_t res_jb;
-	bn128.jb_import(res_jb, hw_result.data());
+	Bn128::jb_p_t<Bn128::f_t<1>> res_jb;
+	Bn128::jb_import(res_jb, hw_result.data());
 	printf("Result from FPGA:\n");
-	bn128.print_jb(res_jb);
+	res_jb.print();
 
-	Bn128::af_fp_t res_af = bn128.mont_jb_to_af(res_jb);
+	Bn128::af_p_t<Bn128::f_t<1>> res_af = Bn128::mont_jb_to_af(res_jb);
 	printf("Converted back to af coordinates in normal form:\n");
-	bn128.print_af(res_af);
+	res_af.print();
 
 	if (res_af == sw_result) {
 		printf("\n\nHURRAH - Result matched expected result, took %luns for %lu input points, %f op/s.\n\n", compute_time, num_in, (1e9*num_in)/compute_time);
