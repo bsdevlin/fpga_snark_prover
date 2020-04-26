@@ -151,7 +151,7 @@ always_ff @ (posedge i_clk) begin
     if (o_sub_if.rdy) o_sub_if.val <= 0;
     if (o_pt_if.rdy) begin
       o_pt_if.val <= 0;
-      if (o_pt_if.eop) o_pt_if.err <= 0;
+      if (o_pt_if.eop && o_pt_if.val) o_pt_if.err <= 0;
     end
 
     case(state)

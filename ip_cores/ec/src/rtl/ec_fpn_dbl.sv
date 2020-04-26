@@ -82,10 +82,11 @@ logic [5:0] nxt_mul, nxt_add, nxt_sub;
 FE_TYPE A, B, C, D, E;
 FP_TYPE i_p_l, o_p;
 logic [$bits(FP_TYPE)-1:0] i_p_l_flat, o_p_flat;
-logic [DIV-1:0] zero_chk;
+logic [$bits(FP_TYPE)/$bits(FE_TYPE_ARITH)-1:0] zero_check;
+logic chks_pass;
 
 always_comb begin
-  i_p_l = i_p_l_flat;
+  chks_pass = ~(&zero_check);
 end
 
 enum {IDLE, START, FINISHED} state;
@@ -102,7 +103,7 @@ always_ff @ (posedge i_clk) begin
     eq_val <= 0;
     state <= IDLE;
     eq_wait <= 0;
-    i_p_l_flat <= 0;
+    i_p_l <= 0;
     o_p_flat <= 0;
     o_p <= 0;
     A <= 0;
@@ -113,7 +114,7 @@ always_ff @ (posedge i_clk) begin
     {add_o_cnt, sub_o_cnt, mul_o_cnt, o_cnt} <= 0;
     {mul_en, add_en, sub_en} <= 0;
     {nxt_mul, nxt_add, nxt_sub} <= 0;  
-    zero_chk <= 0;
+    zero_check <= 0;
   end else begin
     
     i_mul_if.rdy <= 1;
@@ -125,7 +126,7 @@ always_ff @ (posedge i_clk) begin
     if (o_sub_if.rdy) o_sub_if.val <= 0;
     if (o_pt_if.rdy) begin
       o_pt_if.val <= 0;
-      if (o_pt_if.eop) o_pt_if.err <= 0;
+      if (o_pt_if.eop && o_pt_if.val) o_pt_if.err <= 0;
     end
 
     case(state)
@@ -139,12 +140,12 @@ always_ff @ (posedge i_clk) begin
         C <= 0;
         D <= 0;
         E <= 0;
-        zero_chk <= 0;
+        zero_check <= 0;
         {mul_en, add_en, sub_en} <= 0;
         {nxt_mul, nxt_add, nxt_sub} <= 0;        
         if (i_pt_if.val && i_pt_if.rdy) begin
-          i_p_l_flat <= {i_pt_if.dat, i_p_l_flat[$bits(FP_TYPE)-1:ARITH_BITS]};
-          zero_chk <= {zero_chk, i_pt_if.dat == 0};
+          i_p_l <= jb_shift(i_p_l, i_pt_if.dat[0 +: ARITH_BITS]);
+          zero_check <= {zero_check, i_pt_if.dat[0 +: ARITH_BITS] == 0};
           if (i_pt_if.eop) begin
               state <= START;
               i_pt_if.rdy <= 0;
@@ -156,7 +157,7 @@ always_ff @ (posedge i_clk) begin
       {START}: begin
         i_mul_if.rdy <= 1;
         
-        if (zero_chk) begin
+        if (&zero_check) begin
           state <= FINISHED;
           o_p_flat <= 0;
         end
@@ -328,13 +329,13 @@ endtask
 
 task get_next_mul();
   mul_en <= 1;
-  if (~eq_wait[0] && ~&zero_chk)
+  if (~eq_wait[0] && chks_pass)
     nxt_mul <= 0;
   else if (eq_val[0] && ~eq_wait[1])
     nxt_mul <= 1;
   else if (eq_val[0] && ~eq_wait[3])
     nxt_mul <= 3;
-  else if (~eq_wait[5] && ~&zero_chk)
+  else if (~eq_wait[5] && chks_pass)
     nxt_mul <= 5;
   else if (eq_val[5] && ~eq_wait[6])
     nxt_mul <= 6;
@@ -368,10 +369,17 @@ task get_next_add();
   add_en <= 1;
   if (eq_val[2] && ~eq_wait[8])
     nxt_add <= 8;
-  else if (~eq_wait[13] && ~&zero_chk)
+  else if (~eq_wait[13] && chks_pass)
     nxt_add <= 13;
   else
     add_en <= 0;
-endtask  
+endtask 
+
+function FP_TYPE jb_shift(input FP_TYPE p, input logic [ARITH_BITS-1:0] dat);
+  logic [$bits(FP_TYPE)-1:0] p_;
+  p_ = p;
+  p_ = {dat, p[$bits(FP_TYPE)-1:ARITH_BITS]};
+  jb_shift = p_;
+endfunction 
 
 endmodule

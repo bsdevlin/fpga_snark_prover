@@ -24,8 +24,8 @@ import common_pkg::*;
 
 localparam CLK_PERIOD = 100;
 
-localparam NUM_IN = 4;
-localparam NUM_CORES = 4;
+localparam NUM_IN = 16;
+localparam NUM_CORES = 8;
 localparam NUM_ARITH = 1;
 
 localparam DAT_BITS = $bits(fe_t);
@@ -117,6 +117,8 @@ begin
   finish_time = $time;
   out = get_dat;
   
+  $display("Output from FPGA:");
+  print_fp2_jb_point(out);
   
   $display("test0 finished in %d clock cycles", (finish_time-start_time)/CLK_PERIOD);
   
