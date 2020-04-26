@@ -301,15 +301,17 @@ public:
 	static af_p_t<T> mont_jb_to_af(jb_p_t<T> jb) {
 		jb_p_t<T> jb_tmp;
 		af_p_t<T> af;
+		T t;
 		mpz_t one;
 		mpz_init_set_ui (one, 1);
 		jb_tmp.x = mont_mult(jb.x, one);
 		jb_tmp.y = mont_mult(jb.y, one);
-		jb_tmp.z = mont_mult(jb.z, one);
-		jb_tmp.z = jb_tmp.z * jb_tmp.z;
+		t = mont_mult(jb.z, one);
+		jb_tmp.z = t * t;
 		af.x = jb_tmp.x / jb_tmp.z;
-		jb_tmp.z = jb_tmp.z * jb_tmp.z;
-		af.y = jb_tmp.y / jb_tmp.z;
+		jb_tmp.z = jb_tmp.z * t;
+		jb_tmp.z = T (1) / jb_tmp.z;
+		af.y = jb_tmp.y * jb_tmp.z;
 		return af;
 	}
 

@@ -80,11 +80,14 @@ int main(int argc, char **argv) {
 	Bn128::af_p_t<Bn128::f_t<1>> sw_result;
 	sw_result = 0;
 
-	// Create the test data
+	// Create the test data - random scalars with uniform distribution
+	gmp_randstate_t random_state;
+	gmp_randinit_default(random_state);
 	for (size_t i = 0; i < num_in; i++) {
 		mpz_t s;
-		mpz_init_set_ui(s, i+1);
-		Bn128::af_p_t<Bn128::f_t<1>> p = Bn128::G1_af * s;
+		mpz_init(s);
+		mpz_urandomb(s, random_state, BN128_BITS);
+		Bn128::af_p_t<Bn128::f_t<1>> p = Bn128::G1_af;
 		Bn128::af_export((void*)&point_input[i*2*BN128_BITS/64], Bn128::to_mont(p));
 		Bn128::fe_export((void*)&scalar_input[i*BN128_BITS/64], s);
 		sw_result = sw_result + (p * s);
