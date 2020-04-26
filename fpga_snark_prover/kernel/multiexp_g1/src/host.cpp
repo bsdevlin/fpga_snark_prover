@@ -54,13 +54,14 @@ long timer_end(struct timespec start_time){
 }
 
 int main(int argc, char **argv) {
-	if (argc != 3) {
-		std::cout << "Usage: " << argv[0] << " <XCLBIN File>" << " <number of points to test>" << std::endl;
+	if (argc != 4) {
+		std::cout << "Usage: " << argv[0] << " <XCLBIN File>" << " <number of points to test>" << "<0 or 1 to enable software verification>" << std::endl;
 		return EXIT_FAILURE;
 	}
 
 	std::string binaryFile = argv[1];
 	uint64_t num_in = strtol(argv[2], NULL, 0);
+	bool check_result = strtol(argv[3], NULL, 0);
 
 	cl_int err;
 	cl::CommandQueue q;
@@ -90,12 +91,17 @@ int main(int argc, char **argv) {
 		Bn128::af_p_t<Bn128::f_t<1>> p = Bn128::G1_af;
 		Bn128::af_export((void*)&point_input[i*2*BN128_BITS/64], Bn128::to_mont(p));
 		Bn128::fe_export((void*)&scalar_input[i*BN128_BITS/64], s);
-		sw_result = sw_result + (p * s);
+		if (check_result)
+			sw_result = sw_result + (p * s);
 	}
 
 	// Expected result
-	printf("Expected result:\n");
-	sw_result.print();
+	if (check_result) {
+		printf("Expected result:\n");
+		sw_result.print();
+	} else {
+		printf("INFO: Not checking result in SW");
+	}
 
 	// Run the kernel
 
@@ -181,7 +187,10 @@ int main(int argc, char **argv) {
 	printf("Converted back to af coordinates in normal form:\n");
 	res_af.print();
 
-	if (res_af == sw_result) {
+	if (!check_result) {
+		printf("\n\nProgram finished (not checking result), took %luns for %lu input points, %f op/s.\n\n", compute_time, num_in, (1e9*num_in)/compute_time);
+		return EXIT_SUCCESS;
+	} else if (res_af == sw_result) {
 		printf("\n\nHURRAH - Result matched expected result, took %luns for %lu input points, %f op/s.\n\n", compute_time, num_in, (1e9*num_in)/compute_time);
 		return EXIT_SUCCESS;
 	} else {

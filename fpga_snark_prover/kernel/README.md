@@ -33,6 +33,8 @@ Makefile, utils.mk             -- Makefiles
 xrt.ini                        -- Used during testing with TARGET=hw_emu, you can uncomment the two lines to be able to see the simulation waveform
 ```
 
+The shared folder contains bn128.hpp which has functions required to format data into what the FPGA expects, as well as Montgomery transforms, and software functions for calculating expected results 
+
 ## Getting started ##
 
 If you just want to test a pre-built .awsxclbin file (this is a file which points to a pre-build FPGA image (AFI), and contains a compiled host executable) you can skip this section and go to "Testing on the FPGA".
