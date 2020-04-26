@@ -23,7 +23,7 @@ The goal of this project is to accelerate zk-SNARK proof creation by offloading 
 ### Running at home on a FPGA ###
 
 1. Clone this repo locally and include the RTL code into the top level for your board (only tested on Xilinx Ultrasacle+ parts). Top level files are in fpga_snark_prover/src/rtl/.
-2. Run this on the Amazon AWS infrastructure. Instructions are example projects are [here](kernel/README.md).
+2. Run this on the Amazon AWS infrastructure. Instructions are example projects are [here](fpga_snark_prover/kernel/README.md).
 
 ## Folder structure ##
 
