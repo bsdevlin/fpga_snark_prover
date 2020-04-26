@@ -1,7 +1,7 @@
 Kernels (RTL)
 ======================
 
-![FPGA top level](images/bn128 FPGA SNARKER prover top.png)
+![FPGA top level](images/bn128_FPGA_SNARKER_prover_top.png)
 
 Several kernels have been compiled from the RTL code that allows for easy inclusion into a host.cpp file. Multiple kernels can be linked and 
 exercised depending on what functionality is needed.
