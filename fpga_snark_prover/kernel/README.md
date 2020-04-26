@@ -1,6 +1,8 @@
 Kernels (RTL)
 ======================
 
+![FPGA top level](https://docs.google.com/drawings/d/e/2PACX-1vQAJBW1svwA2cjzlMHBwzArZfoUbB2YkBBIInA4L0BGayH7Rqml19rVJpgqOoufoZW44UbZ-se5Kzrf/pub?w=964&h=651)
+
 Several kernels have been compiled from the RTL code that allows for easy inclusion into a host.cpp file. Multiple kernels can be linked and 
 exercised depending on what functionality is needed.
 Each kernels operates on DRAM memory on the FPGA, which has 4 DDR banks of 16GB each. When building the kernel will automatically get assigned to a 16GB DDR bank and only able to access that bank - to change this you need to modify the kernel.cdf file.
