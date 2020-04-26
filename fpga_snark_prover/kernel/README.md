@@ -59,15 +59,15 @@ source ./vitis_setup.sh
 ```
 5. cd into the kernel top level directory and install required packages.
 ```
-cd ../../kernel/
+cd ../../fpga_snark_prover/kernel/
 sudo yum -y install $(cat packages.txt)
 ```
-6. cd into one of the fpga_snark_prover kernel directories, and run hardware emulation. This will build the executable (host) using g++, and the FPGA emulation binary (.xclbin), and then run a test which should take around 10-20 minutes. If you want to debug the operation you can uncomment the ``#[Emulation]`` and ``#launch_waveform=gui`` lines in xrt.ini before you run this. 
+6. cd into one of the fpga_snark_prover kernel directories, and run hardware emulation. This will build the executable (host) using g++, and the FPGA emulation binary (.xclbin), and then run a test which should take around 30 minutes to build the .xclbin the first time, afterwards you can modify the host.cpp and runs will only take around 5min. If you want to debug the operation you can uncomment the ``#[Emulation]`` and ``#launch_waveform=gui`` lines in xrt.ini before you run this. 
 ```
 cd multiexp_g1/
 make check
 ```
-7. If everything tested OK, now build the .xclbin file that will be loaded onto the FPGA.
+7. If everything tested OK, now build the .xclbin file that will be loaded onto the FPGA. Depending on the complexity of the kernel this step will take multiple hours. You only need to re-build this if you change the config file for a kernel and want to include more copies or a different mix.
 ```
 make all TARGET=hw
 ```
@@ -92,7 +92,7 @@ Calculates the G1 multi-exponentiation. At the moment there is a limitation that
 
 | # | Argument | Type | Notes |
 | --- | --- | --- | --- |
-| 0 | num_in  | uint64_t  | The number of points in G1 and scalars pairs to operate on. Must be a multiple of the number of cores (16).   |
+| 0 | num_in  | uint64_t  | The number of points in G1 and scalars pairs to operate on. Must be a multiple of the number of cores.   |
 | 1 | point_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of input G1 points in Montgomery form affine coordinates. |
 | 2 | scalar_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of 256 bit scalars. |
 | 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G1 Montgomery form jacobian point coordinates. |
@@ -102,7 +102,7 @@ Calculates the G2 or G1 multi-exponentiation.  At the moment there is a limitati
 
 | # | Argument | Type | Notes |
 | --- | --- | --- | --- |
-| 0 | num_in  | uint64_t  | The number of points in G2 and scalars to operate on. Must be a multiple of the number of cores (16).   |
+| 0 | num_in  | uint64_t  | The number of points in G2 and scalars to operate on. Must be a multiple of the number of cores.   |
 | 1 | point_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of input G2 points in Montgomery form affine coordinates. |
 | 2 | scalar_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of 256 bit scalars. |
 | 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G2 Montgomery form jacobian point coordinates. |
