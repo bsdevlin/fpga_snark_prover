@@ -1,7 +1,13 @@
 Kernels (RTL)
 ======================
 
+## Top level ##
+
+This diagram shows the top level view when using the FPGA SNARK prover in a AWS Vitis enviroment. Kernels are designed in RTL (System Verilog), and then "linked" together in a host.cpp file which can then send data via DMA to the DDR banks (total 4 banks, 16GB each) which the FPGA can operate on and then return a result to. The host file allows you to include different combinations of kernels together and specify the data flow in a high level language, without worrying about the underneath RTL implementation.
+
 ![FPGA top level](images/bn128_FPGA_SNARKER_prover_top.png)
+
+## Kernels designed ##
 
 Several kernels have been compiled from the RTL code that allows for easy inclusion into a host.cpp file. Multiple kernels can be linked and 
 exercised depending on what functionality is needed.
