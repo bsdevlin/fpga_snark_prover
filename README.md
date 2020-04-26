@@ -7,7 +7,7 @@ This repo contains the results of an Ethereum grant into developing a FPGA SNARK
 
 The goal of this project is to accelerate zk-SNARK proof creation by offloading operations to a FPGA:
  * FPGA acceleration of bn128 curve arithmetic
-   - Implement base curve arithmetic in Montgomery form, coprocessor architecture
+   - Implement base curve arithmetic in Montgomery form, kernel architecture
    - Implement G1 (Fp) & G2 (Fp2) point multiplication
    - Implement architecture on AWS and show functionality with c++ API over PCIe
  * Multi exponentiation (multiexp) - implement G1_MULTIEXP and G2_MULTIEXP
@@ -18,6 +18,12 @@ The goal of this project is to accelerate zk-SNARK proof creation by offloading 
    - Implement polynomial field arithmetic on FPGA
    - Implement the FFT / iFFT on FPGA
    
+## Getting started ##
+
+### Running at home on a FPGA ###
+
+1. Clone this repo locally and include the RTL code into the top level for your board (only tested on Xilinx Ultrasacle+ parts). Top level files are in fpga_snark_prover/src/rtl/.
+2. Run this on the Amazon AWS infrastructure. Instructions are example projects are [here](kernel/README.md).
 
 ## Folder structure ##
 

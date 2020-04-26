@@ -25,17 +25,58 @@ Makefile, utils.mk             -- Makefiles
 xrt.ini                        -- Used during testing with TARGET=hw_emu, you can uncomment the two lines to be able to see the simulation waveform
 ```
 
-## To run ##
+## Getting started ##
 
-1. ``source fpga_snark_prover\submodules\aws-fpga\vitis_setup.sh``.
-2. Go into one of the kernel directories, and run hardware emulation ``make all TARGET=hw_emu``.
-3. Build the .xclbinmage that will be loaded onto the FPGA ``make all TARGET=hw``.
-4. Build the .awsxclbin and AFI. ``make to_f1 S3_BUCKET=<S3 name of your bucket>``. This will generate a tar 'to_f1.tar.gz' that can be copied onto a F1 instance and run on a real FPGA.
+If you just want to test a pre-built .awsxclbin file (this is a file which points to a pre-build FPGA image (AFI), and contains a compiled host executable) you can skip this section and go to "Testing on the FPGA".
 
+### Building from source ###
+
+1. Start a AWS instance that can be used to build the FPGA code from source. I usually use a z1d.2xlarge instance. Make sure it is in the same region as where your S3 bucket and where you want to test. I usually pick us-east-1.
+2. Log into the instance and clone this github repo.
+..* ```
+git clone git@github.com:bsdevlin/fpga_snark_prover.git
+```
+3. cd into the AWS repo top level, and install extra required packages. Also do this for project specific packages.
+..*```
+cd fpga_snark_prover/submodules/aws-fpga/
+sudo yum -y install $(cat Vitis/packages.txt)
+```
+4. source the setup script. **This must be done each time you log into the instance.**
+..* ```
+source vitis_setup.sh
+```.
+5. cd into the kernel top level directory and install required packages.
+..*```
+cd ../../kernel/
+sudo yum -y install $(cat packages.txt)
+```
+6. cd into one of the fpga_snark_prover kernel directories, and run hardware emulation. This will build the executable (host) using g++, and the FPGA emulation binary (.xclbin), and then run a test which should take around 10-20 minutes. If you want to debug the operation you can uncomment the ``#[Emulation]`` and ``#launch_waveform=gui`` lines in xrt.ini before you run this. 
+..* ```
+cd multiexp_g1/
+make check
+```
+7. If everything tested OK, now build the .xclbin file that will be loaded onto the FPGA.
+..*```
+make all TARGET=hw
+```
+8. Build the .awsxclbin and AFI. This will generate a tar 'to_f1.tar.gz' that can be scped onto a F1 instance and run on a real FPGA.
+..*```
+make to_f1 S3_BUCKET=<S3 name of your bucket>
+```
+
+### Testing on the FPGA ###
+
+1. In order to run on the actual FPGA you need to create a F1 instance. The smallest is a f1.2xlarge instance which has a single FPGA. Make sure it is in the same region you created the AFI.
+2. Log into the instance and repeat steps #2 -> #5 above.
+3. Either scp the 'to_f1.tar.gz' file from step #8 above onto this box, or use the pre-created version (TODO), extract the .tar and run the test program.
+..*```
+tar -xvf to_f1.tar.gz
+
+```
 
 ##  Kernel overview ##
 ###  Multiexp_g1 ###
-Calculates the G1 multi-exponentiation. 
+Calculates the G1 multi-exponentiation. At the moment there is a limitation that the number of input points must be a multiple of the number of cores, so please load zero points if this is not the case.
 
 | # | Argument | Type | Notes |
 | --- | --- | --- | --- |
@@ -45,7 +86,7 @@ Calculates the G1 multi-exponentiation.
 | 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G1 Montgomery form jacobian point coordinates. |
 
 ###  Multiexp_g2
-Calculates the G2 or G1 multi-exponentiation. 
+Calculates the G2 or G1 multi-exponentiation.  At the moment there is a limitation that the number of input points must be a multiple of the number of cores, so please load zero points if this is not the case.
 
 | # | Argument | Type | Notes |
 | --- | --- | --- | --- |
