@@ -141,11 +141,11 @@ $(BINARY_CONTAINER_AWS): $(BUILD_DIR)/$(KERNEL_NAME).xclbin
 check: TARGET = hw_emu
 check: all
 	$(CP) $(EMCONFIG_DIR)/emconfig.json .
-	$(EMU_MODE) ./$(EXECUTABLE) $(BUILD_DIR)/$(KERNEL_NAME).xclbin $(NUM_IN)
+	$(EMU_MODE) ./$(EXECUTABLE) $(BUILD_DIR)/$(KERNEL_NAME).xclbin $(NUM_IN) 1
 
 .PHONY: test
 test: $(EXECUTABLE)
-	$(EMU_MODE) ./$(EXECUTABLE) $(BUILD_DIR)/$(KERNEL_NAME).xclbin $(NUM_IN)
+	$(EMU_MODE) ./$(EXECUTABLE) $(BUILD_DIR)/$(KERNEL_NAME).xclbin $(NUM_IN) 1
 
 ifneq ($(TARGET),$(findstring $(TARGET), hw hw_emu))
 $(warning WARNING:Application supports only hw hw_emu TARGET. Please use the target for running the application)

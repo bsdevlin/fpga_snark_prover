@@ -224,7 +224,7 @@ always_ff @ (posedge i_clk) begin
           if (add_pnt_if_o.err) begin
             dbl_pnt_if_i.dat <= add_pnt_if_o.dat;
             dbl_pnt_if_i.sop <= add_pnt_if_o.sop;
-            dbl_pnt_if_i.sop <= add_pnt_if_o.eop;
+            dbl_pnt_if_i.eop <= add_pnt_if_o.eop;
             dbl_pnt_if_i.val <= add_pnt_if_o.val;
           end
           
