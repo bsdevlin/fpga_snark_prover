@@ -314,8 +314,7 @@ namespace Bn128 {
 		jb_tmp.z = t * t;
 		af.x = jb_tmp.x / jb_tmp.z;
 		jb_tmp.z = jb_tmp.z * t;
-		jb_tmp.z = T (1) / jb_tmp.z;
-		af.y = jb_tmp.y * jb_tmp.z;
+		af.y = jb_tmp.y / jb_tmp.z;
 		return af;
 	}
 
