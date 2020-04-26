@@ -33,42 +33,35 @@ If you just want to test a pre-built .awsxclbin file (this is a file which point
 
 1. Start a AWS instance that can be used to build the FPGA code from source. I usually use a z1d.2xlarge instance. Make sure it is in the same region as where your S3 bucket and where you want to test. I usually pick us-east-1.
 2. Log into the instance and clone this github repo, and make sure the submodules are updated.
-..*
 ```
 git clone git@github.com:bsdevlin/fpga_snark_prover.git
 cd fpga_snark_prover/submodules
 git submodule update
 ```
 3. cd into the AWS repo top level (should be cloned as submodule), and install extra required packages. Also do this for project specific packages.
-..*
 ```
 cd aws-fpga/
 sudo yum -y install $(cat Vitis/packages.txt)
 ```
 4. source the setup script. **This must be done each time you log into the instance.**
-..*
 ```
 source ./vitis_setup.sh
 ```
 5. cd into the kernel top level directory and install required packages.
-..*
 ```
 cd ../../kernel/
 sudo yum -y install $(cat packages.txt)
 ```
 6. cd into one of the fpga_snark_prover kernel directories, and run hardware emulation. This will build the executable (host) using g++, and the FPGA emulation binary (.xclbin), and then run a test which should take around 10-20 minutes. If you want to debug the operation you can uncomment the ``#[Emulation]`` and ``#launch_waveform=gui`` lines in xrt.ini before you run this. 
-..*
 ```
 cd multiexp_g1/
 make check
 ```
 7. If everything tested OK, now build the .xclbin file that will be loaded onto the FPGA.
-..*
 ```
 make all TARGET=hw
 ```
 8. Build the .awsxclbin and AFI. This will generate a tar 'to_f1.tar.gz' that can be scped onto a F1 instance and run on a real FPGA.
-..*
 ```
 make to_f1 S3_BUCKET=<S3 name of your bucket>
 ```
@@ -78,7 +71,6 @@ make to_f1 S3_BUCKET=<S3 name of your bucket>
 1. In order to run on the actual FPGA you need to create a F1 instance. The smallest is a f1.2xlarge instance which has a single FPGA. Make sure it is in the same region you created the AFI.
 2. Log into the instance and repeat steps #2 -> #5 above.
 3. Either scp the 'to_f1.tar.gz' file from step #8 above onto this box, or use the pre-created version (TODO), extract the .tar and run the test program.
-..*
 ```
 tar -xvf to_f1.tar.gz
 
