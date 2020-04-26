@@ -4,12 +4,15 @@ Multi-exponentiation in G1
  ## Architecture ##
 
 The top level architecture consists of control logic and log-n (we selected  n = 2) multiplexors and de-multiplexors for evenly distributing the input stream of data across the array of multiexp cores. Once each core has computed its result (a subset of the multiexp result), the points are collapsed within the core array into a single final result which is loaded back into DDR memory and can be read by the host.
+
 ![Multiexp top architecture](../images/multi_exp_top_architecture.png)
 
 Each core operates on a subset of the inputs (Mongomery form Jacobian coordinates and scalar pairs), and the inputs are read in a streaming loop. This means the DDR reads are done back to back and will read in bursts all the input points for each bit in the 256 scalar. Note this does not create a bottle neck in the system due to the actual point operations taking longer than the DDR read.
+
 ![DDR access](../images/multi_exp_ddr.png)
 
 Internall each core has a module that can perform point doubling, point addition, and a dedicated modulo adder and modulo subtractor.
+
 ![Multiexp core architecture](../images/multi_exp_core_architecture.png)
 
 For example if the kernel has been compiled with 16 cores, then each core will get 1/16 of the total inputs. After each core has its final result, they are collapsed into each other log2 - so in the case of 16 cores there would be another 4 stages of point addition done before the final Montgomery form Jacobian coordinate point is streamed back to host.
