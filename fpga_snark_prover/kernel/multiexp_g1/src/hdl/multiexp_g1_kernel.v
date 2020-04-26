@@ -152,7 +152,6 @@ end
 // Begin control interface RTL.  Modifying not recommended.
 ///////////////////////////////////////////////////////////////////////////////
 
-
 // AXI4-Lite slave interface
 multiexp_g1_kernel_control_s_axi #(
   .C_S_AXI_ADDR_WIDTH ( C_S_AXI_CONTROL_ADDR_WIDTH ),

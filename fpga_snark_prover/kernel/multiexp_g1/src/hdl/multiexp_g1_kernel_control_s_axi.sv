@@ -97,6 +97,7 @@ localparam
     ADDR_RESULT_P_DATA_0 = 6'h34,
     ADDR_RESULT_P_DATA_1 = 6'h38,
     ADDR_RESULT_P_CTRL   = 6'h3c,
+    ADDR_NUM_CORES       = 6'h40,
     WRIDLE               = 2'd0,
     WRDATA               = 2'd1,
     WRRESP               = 2'd2,
@@ -263,7 +264,7 @@ always @(posedge ACLK) begin
                     rdata <= int_result_p[63:32];
                 end
                 ADDR_NUM_CORES: begin
-                  rdata <= bn128_pkg::NUM_G1_MULTIEXP_CORES;
+                    rdata <= bn128_pkg::NUM_G2_MULTIEXP_CORES;
                 end                
             endcase
         end

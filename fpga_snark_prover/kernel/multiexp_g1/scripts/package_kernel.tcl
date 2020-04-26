@@ -191,6 +191,8 @@ add_files -norecurse $path_to_repo_top/submodules/fpga/ip_cores/fifo/src/rtl/axi
 add_files -norecurse [glob $path_to_repo_top/submodules/fpga/ip_cores/util/src/rtl/*.sv]
 add_files -norecurse $path_to_repo_top/ip_cores/adder_tree/src/rtl/pipe_adder_tree_log_n.sv
 add_files -norecurse [glob $path_to_repo_top/ip_cores/ec/src/rtl/*.sv]
+add_files -norecurse [glob $path_to_repo_top/submodules/fpga/ip_cores/ec/src/rtl/ec_point_add.sv]
+add_files -norecurse [glob $path_to_repo_top/submodules/fpga/ip_cores/ec/src/rtl/ec_point_dbl.sv]
 add_files -norecurse [glob $path_to_repo_top/ip_cores/montgomery_mult/src/rtl/*.sv]
 add_files -norecurse [glob $path_to_repo_top/ip_cores/multiplier/src/rtl/*.sv]
 add_files -norecurse [glob $path_to_repo_top/ip_cores/tree_packet_arb/src/rtl/*.sv]
