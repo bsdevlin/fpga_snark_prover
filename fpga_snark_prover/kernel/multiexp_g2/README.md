@@ -2,7 +2,7 @@ Multi-exponentiation in G2
 ======================
 Please refer to the multiexp_g1 architecture description as the multiexp_g2 kernel is very similar.
 
-The kernel has been configured with 8 cores due to each core being larger than in the G1 case, but this could be changed and exxperimented with.
+The kernel has been configured with 8 cores due to each core being larger than in the G1 case, but this could be changed and experimented with.
 
 ## Kernel base performance and area utilization ##
 
