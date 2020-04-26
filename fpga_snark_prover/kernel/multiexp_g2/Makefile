@@ -117,7 +117,7 @@ $(EMCONFIG_DIR)/emconfig.json:
 NUM_IN :=
 EMU_MODE :=
 ifeq ($(TARGET), hw_emu)
-	NUM_IN := 0x10
+	NUM_IN := 0x8
 	EMU_MODE := XCL_EMULATION_MODE=$(TARGET)
 else
 	NUM_IN := 0x10000
