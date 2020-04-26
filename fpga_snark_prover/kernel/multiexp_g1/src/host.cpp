@@ -62,7 +62,6 @@ int main(int argc, char **argv) {
 	std::string binaryFile = argv[1];
 	uint64_t num_in = strtol(argv[2], NULL, 0);
 
-	Bn128 bn128;
 	cl_int err;
 	cl::CommandQueue q;
 	cl::Context context;

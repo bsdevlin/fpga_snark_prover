@@ -48,7 +48,7 @@ include $(ABS_COMMON_REPO)/common/includes/xcl2/xcl2.mk
 CXXFLAGS += $(xcl2_CXXFLAGS)
 LDFLAGS += $(xcl2_LDFLAGS) -lgmp -lgmpxx
 HOST_SRCS += $(xcl2_SRCS)
-HOST_SRCS += src/host.cpp ../shared/bn128.hpp
+HOST_SRCS += src/host.cpp
 HOST_INC := -I../shared/
 
 CXXFLAGS += $(opencl_CXXFLAGS) -Wall -O0 -g -std=c++11
