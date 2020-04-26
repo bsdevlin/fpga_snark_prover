@@ -7,11 +7,11 @@ The top level architecture consists of control logic and log-n (we selected  n =
 
 ![Multiexp top architecture](../images/multi_exp_top_architecture.png)
 
-Each core operates on a subset of the inputs (Mongomery form Jacobian coordinates and scalar pairs), and the inputs are read in a streaming loop. This means the DDR reads are done back to back and will read in bursts all the input points for each bit in the 256 scalar. Note this does not create a bottle neck in the system due to the actual point operations taking longer than the DDR read.
+Each core operates on a subset of the inputs (Montgomery form Jacobian coordinates and scalar pairs), and the inputs are read in a streaming loop. This means the DDR reads are done back to back and will read in bursts all the input points for each bit in the 256 scalar. Note this does not create a bottle neck in the system due to the actual point operations taking longer than the DDR read.
 
 ![DDR access](../images/multi_exp_ddr.png)
 
-Internall each core has a module that can perform point doubling, point addition, and a dedicated modulo adder and modulo subtractor.
+Internally each core has a module that can perform point doubling, point addition, and a dedicated modulo adder and modulo subtractor.
 
 ![Multiexp core architecture](../images/multi_exp_core_architecture.png)
 
@@ -30,7 +30,7 @@ The kernel was able to operate at 290MHz with 16 cores. It used the following re
 Each additional core adds ~10.5K FFs and ~12.5K LUTs. Each multiplier unit adds ~50K FFs, 23K LUTs, and 480 DSPs.
 
 ## Simulated performance ##
-The table below shows the performance and area trade off when increasing cores or increasing arithmetic units. FMax here shows the maximum frequency that was acheived during a 
+The table below shows the performance and area trade off when increasing cores or increasing arithmetic units. FMax here shows the maximum frequency that was achieved during a 
 out of context run, and due to quantization effects when assembling multiple kernels might change. Throughput was simulated over a small number of points (32), but it is enough to 
 saturate the cores operating in parallel, so that performance would roughly be linear with increase of input points.
 
