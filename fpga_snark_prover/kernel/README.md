@@ -28,6 +28,7 @@ src/kernel.cfg                 -- Kernel config options, here the SLR or DDR ban
 src/kernel.xml                 -- XML describing the kernel, do not change
 src/hdl/*                      -- RTL files used to generate the kernel logic
 scripts/*                      -- Scripts used to generate output files, do not change
+to_aws/to_f1.tar.gz            -- This is a pre built file that can be used for testing without having to build from source
 README.md                      -- Kernel specific readme
 Makefile, utils.mk             -- Makefiles
 xrt.ini                        -- Used during testing with TARGET=hw_emu, you can uncomment the two lines to be able to see the simulation waveform
@@ -78,7 +79,7 @@ make to_f1 S3_BUCKET=<S3 name of your bucket> TARGET=hw
 
 1. In order to run on the actual FPGA you need to create a F1 instance. The smallest is a f1.2xlarge instance which has a single FPGA. Make sure it is in the same region you created the AFI.
 2. Log into the instance and repeat steps #2 -> #5 above.
-3. You need to check that the AFI has finished being created before you can use it on a real FPGA, which can take around 30min. 
+3. If you just built from source, you might need to check that the AFI has finished being created before you can use it on a real FPGA, which can take around 30min. 
 ```
 aws ec2 describe-fpga-images --fpga-image-ids <AFI ID>
 ```
@@ -90,7 +91,7 @@ If it has been created you will see:
     },
     ...
 ```    
-4. Either scp the 'to_f1.tar.gz' file from step #8 above onto this box, or use the pre-created version (TODO), extract the .tar and run the test program.
+4. Either scp the 'to_f1.tar.gz' file from step #8 above onto this box, or use the reference AFI (the repo to_aws/to_f1.tar.gz), extract the .tar and run the test program. If you want to use the reference AFI, you can change host.cpp and rebuild that so that you get different operation / input points.
 ```
 tar -xvf to_f1.tar.gz
 ./host <path to .awscxlbin> <any arguments required>
