@@ -44,13 +44,11 @@ If you just want to test a pre-built .awsxclbin file (this is a file which point
 1. Start a AWS instance that can be used to build the FPGA code from source. I usually use a z1d.2xlarge instance. Make sure it is in the same region as where your S3 bucket and where you want to test. I usually pick us-east-1.
 2. Log into the instance and clone this github repo, and make sure the submodules are updated.
 ```
-git clone git@github.com:bsdevlin/fpga_snark_prover.git
-cd fpga_snark_prover/submodules
-git submodule update
+git clone --recurse-submodules https://github.com/bsdevlin/fpga_snark_prover.git
 ```
 3. cd into the AWS repo top level (should be cloned as submodule), and install extra required packages. Also do this for project specific packages.
 ```
-cd aws-fpga/
+cd fpga_snark_prover/submodules/aws-fpga/
 sudo yum -y install $(cat Vitis/packages.txt)
 ```
 4. source the setup script. **This must be done each time you log into the instance.**
@@ -71,19 +69,31 @@ make check
 ```
 make all TARGET=hw
 ```
-8. Build the .awsxclbin and AFI. This will generate a tar 'to_f1.tar.gz' that can be scped onto a F1 instance and run on a real FPGA.
+8. Build the .awsxclbin and AFI. This will generate a tar ``to_f1.tar.gz`` that can be scp'ed onto a F1 instance and run on a real FPGA. You might need to run ``aws configure`` to setup the login settings to upload to your S3 bucket.
 ```
-make to_f1 S3_BUCKET=<S3 name of your bucket>
+make to_f1 S3_BUCKET=<S3 name of your bucket> TARGET=hw
 ```
 
 ### Testing on the FPGA ###
 
 1. In order to run on the actual FPGA you need to create a F1 instance. The smallest is a f1.2xlarge instance which has a single FPGA. Make sure it is in the same region you created the AFI.
 2. Log into the instance and repeat steps #2 -> #5 above.
-3. Either scp the 'to_f1.tar.gz' file from step #8 above onto this box, or use the pre-created version (TODO), extract the .tar and run the test program.
+3. You need to check that the AFI has finished being created before you can use it on a real FPGA, which can take around 30min. 
+```
+aws ec2 describe-fpga-images --fpga-image-ids <AFI ID>
+```
+If it has been created you will see:
+```
+    ...
+    "State": {
+        "Code": "available"
+    },
+    ...
+```    
+4. Either scp the 'to_f1.tar.gz' file from step #8 above onto this box, or use the pre-created version (TODO), extract the .tar and run the test program.
 ```
 tar -xvf to_f1.tar.gz
-
+./host <path to .awscxlbin> <any arguments required>
 ```
 
 ##  Kernel overview ##
@@ -97,7 +107,7 @@ Calculates the G1 multi-exponentiation. At the moment there is a limitation that
 | 2 | scalar_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of 256 bit scalars. |
 | 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G1 Montgomery form jacobian point coordinates. |
 
-###  Multiexp_g2
+###  Multiexp_g2 ###
 Calculates the G2 or G1 multi-exponentiation.  At the moment there is a limitation that the number of input points must be a multiple of the number of cores, so please load zero points if this is not the case.
 
 | # | Argument | Type | Notes |
@@ -106,3 +116,7 @@ Calculates the G2 or G1 multi-exponentiation.  At the moment there is a limitati
 | 1 | point_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of input G2 points in Montgomery form affine coordinates. |
 | 2 | scalar_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of 256 bit scalars. |
 | 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G2 Montgomery form jacobian point coordinates. |
+
+
+### Top ###
+This builds all the kernels into a single FPGA image that can use one of each of the kernels. IN PROGRESS
