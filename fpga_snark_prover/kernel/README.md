@@ -69,7 +69,7 @@ make check
 ```
 make all TARGET=hw
 ```
-8. Build the .awsxclbin and AFI. This will generate a tar 'to_f1.tar.gz' that can be scp'ed onto a F1 instance and run on a real FPGA.
+8. Build the .awsxclbin and AFI. This will generate a tar ``to_f1.tar.gz`` that can be scp'ed onto a F1 instance and run on a real FPGA. You might need to run ``aws configure`` to setup the login settings to upload to your S3 bucket.
 ```
 make to_f1 S3_BUCKET=<S3 name of your bucket> TARGET=hw
 ```
@@ -78,10 +78,22 @@ make to_f1 S3_BUCKET=<S3 name of your bucket> TARGET=hw
 
 1. In order to run on the actual FPGA you need to create a F1 instance. The smallest is a f1.2xlarge instance which has a single FPGA. Make sure it is in the same region you created the AFI.
 2. Log into the instance and repeat steps #2 -> #5 above.
-3. Either scp the 'to_f1.tar.gz' file from step #8 above onto this box, or use the pre-created version (TODO), extract the .tar and run the test program.
+3. You need to check that the AFI has finished being created before you can use it on a real FPGA, which can take around 30min. 
+```
+aws ec2 describe-fpga-images --fpga-image-ids <AFI ID>
+```
+If it has been created you will see:
+```
+    ...
+    "State": {
+        "Code": "available"
+    },
+    ...
+```    
+4. Either scp the 'to_f1.tar.gz' file from step #8 above onto this box, or use the pre-created version (TODO), extract the .tar and run the test program.
 ```
 tar -xvf to_f1.tar.gz
-
+./host <path to .awscxlbin> <any arguments required>
 ```
 
 ##  Kernel overview ##
