@@ -71,9 +71,9 @@ make check
 ```
 make all TARGET=hw
 ```
-8. Build the .awsxclbin and AFI. This will generate a tar 'to_f1.tar.gz' that can be scped onto a F1 instance and run on a real FPGA.
+8. Build the .awsxclbin and AFI. This will generate a tar 'to_f1.tar.gz' that can be scp'ed onto a F1 instance and run on a real FPGA.
 ```
-make to_f1 S3_BUCKET=<S3 name of your bucket>
+make to_f1 S3_BUCKET=<S3 name of your bucket> TARGET=hw
 ```
 
 ### Testing on the FPGA ###
@@ -97,7 +97,7 @@ Calculates the G1 multi-exponentiation. At the moment there is a limitation that
 | 2 | scalar_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of 256 bit scalars. |
 | 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G1 Montgomery form jacobian point coordinates. |
 
-###  Multiexp_g2
+###  Multiexp_g2 ###
 Calculates the G2 or G1 multi-exponentiation.  At the moment there is a limitation that the number of input points must be a multiple of the number of cores, so please load zero points if this is not the case.
 
 | # | Argument | Type | Notes |
@@ -106,3 +106,4 @@ Calculates the G2 or G1 multi-exponentiation.  At the moment there is a limitati
 | 1 | point_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of input G2 points in Montgomery form affine coordinates. |
 | 2 | scalar_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of 256 bit scalars. |
 | 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G2 Montgomery form jacobian point coordinates. |
+
