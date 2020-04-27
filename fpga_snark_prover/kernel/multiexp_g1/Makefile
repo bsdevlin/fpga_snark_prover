@@ -128,7 +128,7 @@ endif
 .PHONY: to_f1
 to_f1: $(F1_FILE)
 $(F1_FILE): $(EXECUTABLE) $(BINARY_CONTAINER_AWS) 
-	tar czvf $(F1_FILE) $(BINARY_CONTAINER_AWS) $(EXECUTABLE)
+	tar czvf $(F1_FILE) $(BINARY_CONTAINER_AWS) $(EXECUTABLE) *afi_id.txt
 
 
 

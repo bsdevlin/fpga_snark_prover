@@ -129,7 +129,7 @@ endif
 to_f1: $(F1_FILE)
  
 $(F1_FILE): $(EXECUTABLE) $(BINARY_CONTAINER_AWS) 
-	tar czvf $(F1_FILE) $(BINARY_CONTAINER_AWS) $(EXECUTABLE)
+	tar czvf $(F1_FILE) $(BINARY_CONTAINER_AWS) $(EXECUTABLE) *afi_id.txt
 
 # This takes the output FPGA files and creates an AFI to run on AWS FPGA hosts
 $(BINARY_CONTAINER_AWS): $(BUILD_DIR)/$(KERNEL_NAME).xclbin
