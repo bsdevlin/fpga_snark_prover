@@ -81,7 +81,7 @@ BINARY_CONTAINERS += $(BUILD_DIR)/$(KERNEL_NAME).xclbin
 BINARY_CONTAINER_OBJS += $(TEMP_DIR)/$(KERNEL_NAME).xo
 
 BINARY_CONTAINER_AWS = $(KERNEL_NAME).awsxclbin
-F1_FILE := $(BUILD_DIR)/to_f1.tar.gz
+F1_FILE := to_f1.tar.gz
 S3_BUCKET := your_bucket_name
 
 CP = cp -rf
@@ -126,7 +126,6 @@ endif
 
 # Gather files needed to run on the FPGA
 .PHONY: to_f1
-to_f1: TARGET = hw
 to_f1: $(F1_FILE)
  
 $(F1_FILE): $(EXECUTABLE) $(BINARY_CONTAINER_AWS) 
@@ -134,9 +133,12 @@ $(F1_FILE): $(EXECUTABLE) $(BINARY_CONTAINER_AWS)
 
 # This takes the output FPGA files and creates an AFI to run on AWS FPGA hosts
 $(BINARY_CONTAINER_AWS): $(BUILD_DIR)/$(KERNEL_NAME).xclbin
+ifneq ($(TARGET), hw)
+	$(error TARGET must be hw)
+else
 	$(AWS_FPGA_REPO_DIR)/Vitis/tools/create_vitis_afi.sh -xclbin=$(BUILD_DIR)/$(KERNEL_NAME).xclbin -o=$(KERNEL_NAME) -s3_bucket=$(S3_BUCKET) -s3_dcp_key=dcp -s3_logs_key=logs; \
 	cat *afi_id.txt
-
+endif
 
 check: TARGET = hw_emu
 check: all

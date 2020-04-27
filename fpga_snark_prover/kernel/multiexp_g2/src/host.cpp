@@ -55,7 +55,7 @@ long timer_end(struct timespec start_time){
 
 int main(int argc, char **argv) {
 	if (argc != 4) {
-		std::cout << "Usage: " << argv[0] << " <XCLBIN File>" << " <number of points to test>" << "<0 or 1 to enable software verification>" << std::endl;
+		std::cout << "Usage: " << argv[0] << " <XCLBIN File>" << " <number of points to test>" << " <0 or 1 to enable software verification>" << std::endl;
 		return EXIT_FAILURE;
 	}
 
