@@ -44,13 +44,11 @@ If you just want to test a pre-built .awsxclbin file (this is a file which point
 1. Start a AWS instance that can be used to build the FPGA code from source. I usually use a z1d.2xlarge instance. Make sure it is in the same region as where your S3 bucket and where you want to test. I usually pick us-east-1.
 2. Log into the instance and clone this github repo, and make sure the submodules are updated.
 ```
-git clone git@github.com:bsdevlin/fpga_snark_prover.git
-cd fpga_snark_prover/submodules
-git submodule update
+git clone --recurse-submodules https://github.com/bsdevlin/fpga_snark_prover.git
 ```
 3. cd into the AWS repo top level (should be cloned as submodule), and install extra required packages. Also do this for project specific packages.
 ```
-cd aws-fpga/
+cd fpga_snark_prover/submodules/aws-fpga/
 sudo yum -y install $(cat Vitis/packages.txt)
 ```
 4. source the setup script. **This must be done each time you log into the instance.**
@@ -107,3 +105,6 @@ Calculates the G2 or G1 multi-exponentiation.  At the moment there is a limitati
 | 2 | scalar_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of 256 bit scalars. |
 | 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G2 Montgomery form jacobian point coordinates. |
 
+
+### Top ###
+This builds all the kernels into a single FPGA image that can use one of each of the kernels. IN PROGRESS
