@@ -81,7 +81,7 @@ BINARY_CONTAINERS += $(BUILD_DIR)/$(KERNEL_NAME).xclbin
 BINARY_CONTAINER_OBJS += $(TEMP_DIR)/$(KERNEL_NAME).xo
 
 BINARY_CONTAINER_AWS = $(KERNEL_NAME).awsxclbin
-F1_FILE := to_f1.tar.gz
+F1_FILE := to_aws/to_f1.tar.gz
 S3_BUCKET := your_bucket_name
 
 CP = cp -rf
@@ -127,7 +127,8 @@ endif
 # Gather files needed to run on the FPGA
 .PHONY: to_f1
 to_f1: $(F1_FILE)
-$(F1_FILE): $(EXECUTABLE) $(BINARY_CONTAINER_AWS) 
+$(F1_FILE): $(EXECUTABLE) $(BINARY_CONTAINER_AWS)
+	mkdir -p to_aws
 	tar czvf $(F1_FILE) $(BINARY_CONTAINER_AWS) $(EXECUTABLE) *afi_id.txt
 
 
