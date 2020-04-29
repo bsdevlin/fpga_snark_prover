@@ -203,22 +203,22 @@ always_ff @ (posedge i_clk) begin
             eq_val[i_mul_if.ctl[5:0]] <= 1;
           end
           case(i_mul_if.ctl[5:0]) inside
-            0: A <= {i_mul_if.dat, A[1]};
-            1: i_p1_l.x <= {i_mul_if.dat, i_p1_l.x[1]};
-            2: C <= {i_mul_if.dat, C[1]};
-            3: i_p2_l.x <= {i_mul_if.dat, i_p2_l.x[1]};
-            4: A <= {i_mul_if.dat, A[1]};
-            5: A <= {i_mul_if.dat, A[1]};
-            6: C <= {i_mul_if.dat, C[1]};
-            7: C <= {i_mul_if.dat, C[1]};
-            10: o_p.x <= {i_mul_if.dat, o_p.x[1]};
-            11: D <= {i_mul_if.dat, D[1]};
-            12: i_p2_l.x <= {i_mul_if.dat, i_p2_l.x[1]};
-            14: i_p1_l.x <= {i_mul_if.dat, i_p1_l.x[1]};
-            19: o_p.y <= {i_mul_if.dat, o_p.y[1]};
-            20: i_p2_l.x <= {i_mul_if.dat, i_p2_l.x[1]};
-            22: o_p.z <= {i_mul_if.dat, o_p.z[1]};
-            23: o_p.z <= {i_mul_if.dat, o_p.z[1]};
+            0: A <= fe_shift(A, i_mul_if.dat);
+            1: i_p1_l.x <= fe_shift(i_p1_l.x, i_mul_if.dat);
+            2: C <= fe_shift(C, i_mul_if.dat);
+            3: i_p2_l.x <= fe_shift(i_p2_l.x, i_mul_if.dat);
+            4: A <= fe_shift(A, i_mul_if.dat);
+            5: A <= fe_shift(A, i_mul_if.dat);
+            6: C <= fe_shift(C, i_mul_if.dat);
+            7: C <= fe_shift(C, i_mul_if.dat);
+            10: o_p.x <= fe_shift(o_p.x, i_mul_if.dat);
+            11: D <= fe_shift(D, i_mul_if.dat);
+            12: i_p2_l.x <= fe_shift(i_p2_l.x, i_mul_if.dat);
+            14: i_p1_l.x <= fe_shift(i_p1_l.x, i_mul_if.dat);
+            19: o_p.y <= fe_shift(o_p.y, i_mul_if.dat);
+            20: i_p2_l.x <= fe_shift(i_p2_l.x, i_mul_if.dat);
+            22: o_p.z <= fe_shift(o_p.z, i_mul_if.dat);
+            23: o_p.z <= fe_shift(o_p.z, i_mul_if.dat);
             default: o_pt_if.err <= 1;
           endcase
         end
@@ -229,7 +229,7 @@ always_ff @ (posedge i_clk) begin
             eq_val[i_add_if.ctl[5:0]] <= 1;
           end
           case(i_add_if.ctl[5:0]) inside
-            16: i_p1_l.x <= {i_add_if.dat, i_p1_l.x[1]};
+            16: i_p1_l.x <= fe_shift(i_p1_l.x[1], i_add_if.dat);
             default: o_pt_if.err <= 1;
           endcase
         end
@@ -240,12 +240,12 @@ always_ff @ (posedge i_clk) begin
             eq_val[i_sub_if.ctl[5:0]] <= 1;
           end
           case(i_sub_if.ctl[5:0]) inside
-            8: B <= {i_sub_if.dat, B[1]};
-            9: i_p2_l.y <= {i_sub_if.dat, i_p2_l.y[1]};
-            13: o_p.x <= {i_sub_if.dat, o_p.x[1]};
-            17: o_p.x <= {i_sub_if.dat, o_p.x[1]};
-            18: o_p.y <= {i_sub_if.dat, o_p.y[1]};
-            21: o_p.y <= {i_sub_if.dat, o_p.y[1]};
+            8: B <= fe_shift(B, i_sub_if.dat);
+            9: i_p2_l.y <= fe_shift(i_p2_l.y, i_sub_if.dat);
+            13: o_p.x <= fe_shift(o_p.x, i_sub_if.dat);
+            17: o_p.x <= fe_shift(o_p.x, i_sub_if.dat);
+            18: o_p.y <= fe_shift(o_p.y, i_sub_if.dat);
+            21: o_p.y <= fe_shift(o_p.y, i_sub_if.dat);
             default: o_pt_if.err <= 1;
           endcase
         end
@@ -330,10 +330,10 @@ task subtraction(input int unsigned ctl, input FE_TYPE a, b);
     o_sub_if.ctl[5:0] <= ctl;
     o_sub_if.sop <= sub_o_cnt == 0;
     o_sub_if.eop <= sub_o_cnt == DIV-1;  
-    eq_wait[ctl] <= 1;
     sub_o_cnt <= sub_o_cnt + 1;
     if(sub_o_cnt == DIV-1) begin 
-      get_next_sub();
+      sub_en <= 0;
+      eq_wait[ctl] <= 1;
       sub_o_cnt <= 0;
     end
   end
@@ -348,10 +348,10 @@ task addition(input int unsigned ctl, input FE_TYPE a, b);
     o_add_if.ctl[5:0] <= ctl;
     o_add_if.sop <= add_o_cnt == 0;
     o_add_if.eop <= add_o_cnt == DIV-1;
-    eq_wait[ctl] <= 1;
     add_o_cnt <= add_o_cnt + 1;
     if(add_o_cnt == DIV-1) begin
-      get_next_add();
+      add_en <= 0;
+      eq_wait[ctl] <= 1;
       add_o_cnt <= 0;
     end
   end
@@ -366,10 +366,10 @@ task multiply(input int unsigned ctl, input FE_TYPE a, b);
     o_mul_if.ctl[5:0] <= ctl;
     o_mul_if.sop <= mul_o_cnt == 0;
     o_mul_if.eop <= mul_o_cnt == DIV-1;
-    eq_wait[ctl] <= 1;
     mul_o_cnt <= mul_o_cnt + 1;
     if(mul_o_cnt == DIV-1) begin
-      get_next_mul();
+      mul_en <= 0;
+      eq_wait[ctl] <= 1;
       mul_o_cnt <= 0;
     end
   end
@@ -445,5 +445,12 @@ function FP_TYPE jb_shift(input FP_TYPE p, input logic [ARITH_BITS-1:0] dat);
   p_ = {dat, p[$bits(FP_TYPE)-1:ARITH_BITS]};
   jb_shift = p_;
 endfunction
+ 
+function FE_TYPE fe_shift(input FE_TYPE fe, input logic [ARITH_BITS-1:0] dat);
+  logic [$bits(FE_TYPE)-1:0] fe_;
+  fe_ = fe;
+  fe_ = {dat, fe_[$bits(FE_TYPE)-1:ARITH_BITS]};
+  fe_shift = fe_;
+endfunction 
 
 endmodule
