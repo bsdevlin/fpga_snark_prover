@@ -119,7 +119,7 @@ always_ff @ (posedge i_clk) begin
       if (o_pnt_if.val) begin
         o_res_cnt <= o_res_cnt == 5 ? 0 : o_res_cnt + 1;
         o_res_if.val <= (o_res_cnt == 1) || (o_res_cnt == 3) || (o_res_cnt == 5);
-        o_res_if.sop <= o_res_cnt == 0;
+        o_res_if.sop <= o_res_cnt == 1;
         o_res_if.eop <= o_res_cnt == 5;
         o_res_if.dat[(o_res_cnt % 2)*256 +: 256] <= o_pnt_if.dat;
       end

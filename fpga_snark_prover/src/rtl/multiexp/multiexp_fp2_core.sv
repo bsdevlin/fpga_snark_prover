@@ -56,7 +56,7 @@ module multiexp_fp2_core #(
 );
 
 localparam DAT_BITS = $bits(FE_TYPE);
-
+localparam NUM_WRDS = $bits(FP2_TYPE)/DAT_BITS;
 
 if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   dbl_pnt_if_o (i_clk);
 if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   add_pnt_if_o (i_clk);
@@ -135,17 +135,17 @@ always_ff @ (posedge i_clk) begin
             add_pnt0_if_i.dat <= i_pnt_scl_if.dat;
             add_pnt0_if_i.val <= i_pnt_scl_if.val;
             add_pnt0_if_i.sop <= i_cnt == 0;
-            add_pnt0_if_i.eop <= i_cnt == 5;
+            add_pnt0_if_i.eop <= i_cnt == NUM_WRDS-1;
               
             add_pnt1_if_i.dat <= res[DAT_BITS-1:0];
             add_pnt1_if_i.val <= i_pnt_scl_if.val;
             add_pnt1_if_i.sop <= i_cnt == 0;
-            add_pnt1_if_i.eop <= i_cnt == 5;
+            add_pnt1_if_i.eop <= i_cnt == NUM_WRDS-1;
               
             if (i_pnt_scl_if.val) begin
               res <= {dbl_pnt_if_o.dat, res[$bits(FP2_TYPE)-1:DAT_BITS]};
-              i_cnt <= i_cnt == 5 ? 0 : i_cnt + 1;
-              if (i_cnt == 5) begin
+              i_cnt <= i_cnt == NUM_WRDS-1 ? 0 : i_cnt + 1;
+              if (i_cnt == NUM_WRDS-1) begin
                 state <= ADD_WAIT;
               end
             end
@@ -157,13 +157,13 @@ always_ff @ (posedge i_clk) begin
           
           dbl_pnt_if_i.dat <= res[DAT_BITS-1:0];
           dbl_pnt_if_i.sop <= i_cnt == 0;
-          dbl_pnt_if_i.eop <= i_cnt == 5;
+          dbl_pnt_if_i.eop <= i_cnt == NUM_WRDS-1;
           dbl_pnt_if_i.val <= 1;
           
           res <= {dbl_pnt_if_o.dat, res[$bits(FP2_TYPE)-1:DAT_BITS]};
-          i_cnt <= i_cnt == 5 ? 0 : i_cnt + 1;
+          i_cnt <= i_cnt == NUM_WRDS-1 ? 0 : i_cnt + 1;
           
-          if (i_cnt == 5) state <= DBL_WAIT;
+          if (i_cnt == NUM_WRDS-1) state <= DBL_WAIT;
           
         end
       end
@@ -185,19 +185,19 @@ always_ff @ (posedge i_clk) begin
 
           add_pnt0_if_i.dat <= i_pnt_scl_if.dat;
           add_pnt0_if_i.sop <= i_cnt == 1;
-          add_pnt0_if_i.eop <= i_cnt == 6;
+          add_pnt0_if_i.eop <= i_cnt == NUM_WRDS;
           add_pnt0_if_i.val <= i_cnt > 0 && (key_l[KEY_BITS-1] == 1) && i_pnt_scl_if.val; // We only add to result if the key bit is 1
           
           add_pnt1_if_i.dat <= res[DAT_BITS-1:0];
           add_pnt1_if_i.sop <= i_cnt == 1;
-          add_pnt1_if_i.eop <= i_cnt == 6;
+          add_pnt1_if_i.eop <= i_cnt == NUM_WRDS;
           add_pnt1_if_i.val <= i_cnt > 0 && (key_l[KEY_BITS-1] == 1) && i_pnt_scl_if.val; // We only add to result if the key bit is 1
           
           if (i_pnt_scl_if.val) begin
             if (i_cnt > 0) 
               res <= {res[DAT_BITS-1:0], res[$bits(FP2_TYPE)-1:DAT_BITS]};
             i_cnt <= i_cnt + 1;
-            if (i_cnt == 6) begin //eop
+            if (i_cnt == NUM_WRDS) begin //eop
               i_cnt <= 0;
               if (key_l[KEY_BITS-1] == 1) begin
                 state <= ADD_WAIT;
@@ -249,9 +249,9 @@ always_ff @ (posedge i_clk) begin
           res <= {res[DAT_BITS-1:0], res[$bits(FP2_TYPE)-1:DAT_BITS]}; 
           o_pnt_if.val <= 1;
           o_pnt_if.sop <= i_cnt == 0;
-          o_pnt_if.eop <= i_cnt == 5;
+          o_pnt_if.eop <= i_cnt == NUM_WRDS-1;
           i_cnt <= i_cnt + 1;
-          if (i_cnt == 5) begin
+          if (i_cnt == NUM_WRDS-1) begin
             i_cnt <= 0;
             state <= IDLE;
           end
@@ -301,22 +301,54 @@ ec_fpn_dbl (
   .i_sub_if ( sub_if_i[1] )
 );
 
-ec_fe2_mul_s #(
-  .FE_TYPE  ( FE_TYPE  ),
-  .CTL_BITS ( CTL_BITS )
-)
-ec_fe2_mul_s (
-  .i_clk ( i_clk ),
-  .i_rst ( i_rst ),
-  .o_mul_fe2_if ( mul_fe2_if_i[2] ),
-  .i_mul_fe2_if ( mul_fe2_if_o[2] ),
-  .o_add_fe_if ( add_if_o[2] ),
-  .i_add_fe_if ( add_if_i[2] ),
-  .o_sub_fe_if ( sub_if_o[2] ),
-  .i_sub_fe_if ( sub_if_i[2] ),
-  .o_mul_fe_if ( o_mul_if ),
-  .i_mul_fe_if ( i_mul_if )
-);
+// We optionally add this block so that we can operate on fe_t elements
+generate
+  if ($bits(FE_TYPE) == $bits(FE2_TYPE)/2) begin
+    ec_fe2_mul_s #(
+      .FE_TYPE  ( FE_TYPE  ),
+      .CTL_BITS ( CTL_BITS )
+    )
+    ec_fe2_mul_s (
+      .i_clk ( i_clk ),
+      .i_rst ( i_rst ),
+      .o_mul_fe2_if ( mul_fe2_if_i[2] ),
+      .i_mul_fe2_if ( mul_fe2_if_o[2] ),
+      .o_add_fe_if ( add_if_o[2] ),
+      .i_add_fe_if ( add_if_i[2] ),
+      .o_sub_fe_if ( sub_if_o[2] ),
+      .i_sub_fe_if ( sub_if_i[2] ),
+      .o_mul_fe_if ( o_mul_if ),
+      .i_mul_fe_if ( i_mul_if )
+    );
+  end else begin
+    always_comb begin
+      add_if_i[2].rdy = 1;
+      add_if_o[2].reset_source();
+      sub_if_i[2].rdy = 1;
+      sub_if_o[2].reset_source();
+      
+      o_mul_if.dat = mul_fe2_if_o[2].dat;
+      o_mul_if.val = mul_fe2_if_o[2].val;
+      o_mul_if.sop = mul_fe2_if_o[2].sop;
+      o_mul_if.eop = mul_fe2_if_o[2].eop;
+      o_mul_if.err = 0;
+      o_mul_if.mod = 0;
+      o_mul_if.ctl = mul_fe2_if_o[2].ctl;
+      mul_fe2_if_o[2].rdy = o_mul_if.rdy;
+      
+      mul_fe2_if_i[2].dat = i_mul_if.dat;
+      mul_fe2_if_i[2].val = i_mul_if.val;
+      mul_fe2_if_i[2].sop = i_mul_if.sop;
+      mul_fe2_if_i[2].eop = i_mul_if.eop;
+      mul_fe2_if_i[2].err = 0;
+      mul_fe2_if_i[2].mod = 0;
+      mul_fe2_if_i[2].ctl = i_mul_if.ctl;
+      i_mul_if.rdy = mul_fe2_if_i[2].rdy;
+    end
+
+  end
+endgenerate
+
 
 resource_share # (
   .NUM_IN       ( 3          ),

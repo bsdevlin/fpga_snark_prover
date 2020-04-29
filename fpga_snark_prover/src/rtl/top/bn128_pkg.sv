@@ -522,6 +522,11 @@ package bn128_pkg;
     fe2_to_mont[1] = fe_mul_mont(a[1], MONT_RECIP_SQ);
   endfunction
 
+  function af_point_t af_to_mont(af_point_t a);
+    af_to_mont.x = fe_to_mont(a.x);
+    af_to_mont.y = fe_to_mont(a.y);
+  endfunction
+  
   function jb_point_t jb_to_mont(jb_point_t a);
     jb_to_mont.x = fe_to_mont(a.x);
     jb_to_mont.y = fe_to_mont(a.y);
@@ -547,8 +552,6 @@ package bn128_pkg;
     jb_from_mont.x = fe_from_mont(a.x);
     jb_from_mont.y = fe_from_mont(a.y);
     jb_from_mont.z = fe_from_mont(a.z);
-    $display("from mont\n");
-    $display("%0x", jb_from_mont.y);
     
   endfunction  
   
@@ -570,9 +573,6 @@ package bn128_pkg;
     z_ = fe_mul(p.z, p.z, mont);
     to_affine.x = fe_mul(p.x, fe_inv(z_), mont);
     z_ = fe_mul(z_, p.z, mont);
-    $display("%x",z_ );
-    $display("%x",fe_inv(z_) );
-    $display("%x",p.y );
     to_affine.y = fe_mul(p.y, fe_inv(z_), mont);
   endfunction
   

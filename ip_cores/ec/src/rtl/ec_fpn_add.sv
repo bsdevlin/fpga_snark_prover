@@ -90,6 +90,7 @@ logic [23:0] eq_val, eq_wait;
 localparam ARITH_BITS = $bits(FE_TYPE_ARITH);
 localparam DIV = $bits(FE_TYPE)/ARITH_BITS;
 localparam DIV_LOG2 = DIV == 1 ? 1 : $clog2(DIV);
+localparam NUM_WRDS = $bits(FP_TYPE)/ARITH_BITS;
 
 logic [DIV_LOG2-1:0] add_o_cnt, sub_o_cnt, mul_o_cnt;
 logic mul_en, add_en, sub_en;
@@ -309,9 +310,9 @@ always_ff @ (posedge i_clk) begin
           o_p_flat <= o_p_flat >> ARITH_BITS;
           o_pt_if.val <= 1;
           o_pt_if.sop <= o_cnt == 0;
-          o_pt_if.eop <= o_cnt == 5; 
+          o_pt_if.eop <= o_cnt == NUM_WRDS-1; 
           o_cnt <= o_cnt + 1;
-          if (o_cnt == 5) begin
+          if (o_cnt == NUM_WRDS-1) begin
             o_cnt <= 0;
             state <= IDLE;
           end
@@ -325,8 +326,8 @@ end
 task subtraction(input int unsigned ctl, input FE_TYPE a, b);
   if (~o_sub_if.val || (o_sub_if.val && o_sub_if.rdy)) begin
     o_sub_if.val <= 1;
-    o_sub_if.dat[0 +: ARITH_BITS] <= a[sub_o_cnt];
-    o_sub_if.dat[ARITH_BITS +: ARITH_BITS] <= b[sub_o_cnt];
+    o_sub_if.dat[0 +: ARITH_BITS] <= fe_select(a, sub_o_cnt);
+    o_sub_if.dat[ARITH_BITS +: ARITH_BITS] <= fe_select(b, sub_o_cnt);
     o_sub_if.ctl[5:0] <= ctl;
     o_sub_if.sop <= sub_o_cnt == 0;
     o_sub_if.eop <= sub_o_cnt == DIV-1;  
@@ -343,8 +344,8 @@ endtask
 task addition(input int unsigned ctl, input FE_TYPE a, b);
   if (~o_add_if.val || (o_add_if.val && o_add_if.rdy)) begin
     o_add_if.val <= 1;
-    o_add_if.dat[0 +: ARITH_BITS] <= a[add_o_cnt];
-    o_add_if.dat[ARITH_BITS +: ARITH_BITS] <= b[add_o_cnt];
+    o_add_if.dat[0 +: ARITH_BITS] <= fe_select(a, add_o_cnt);
+    o_add_if.dat[ARITH_BITS +: ARITH_BITS] <= fe_select(b, add_o_cnt);
     o_add_if.ctl[5:0] <= ctl;
     o_add_if.sop <= add_o_cnt == 0;
     o_add_if.eop <= add_o_cnt == DIV-1;
@@ -361,8 +362,8 @@ endtask
 task multiply(input int unsigned ctl, input FE_TYPE a, b);
   if (~o_mul_if.val || (o_mul_if.val && o_mul_if.rdy)) begin
     o_mul_if.val <= 1;
-    o_mul_if.dat[0 +: ARITH_BITS] <= a[mul_o_cnt];
-    o_mul_if.dat[ARITH_BITS +: ARITH_BITS] <= b[mul_o_cnt];
+    o_mul_if.dat[0 +: ARITH_BITS] <= fe_select(a, mul_o_cnt);
+    o_mul_if.dat[ARITH_BITS +: ARITH_BITS] <= fe_select(b, mul_o_cnt);
     o_mul_if.ctl[5:0] <= ctl;
     o_mul_if.sop <= mul_o_cnt == 0;
     o_mul_if.eop <= mul_o_cnt == DIV-1;
@@ -449,8 +450,18 @@ endfunction
 function FE_TYPE fe_shift(input FE_TYPE fe, input logic [ARITH_BITS-1:0] dat);
   logic [$bits(FE_TYPE)-1:0] fe_;
   fe_ = fe;
-  fe_ = {dat, fe_[$bits(FE_TYPE)-1:ARITH_BITS]};
+  if (ARITH_BITS == $bits(FE_TYPE))
+    fe_ = dat;
+  else
+    fe_ = {dat, fe_[$bits(FE_TYPE)-1:ARITH_BITS]};
   fe_shift = fe_;
 endfunction 
+
+function logic [ARITH_BITS-1:0] fe_select(input FE_TYPE fe, input int select);
+  logic [$bits(FE_TYPE)-1:0] fe_;
+  fe_ = fe;
+  fe_select = fe_[select*ARITH_BITS +: ARITH_BITS];
+endfunction 
+
 
 endmodule
