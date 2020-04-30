@@ -225,13 +225,15 @@ always_ff @ (posedge i_clk) begin
             2: multiply(2, B, CONST_4);
             4: multiply(4, C, CONST_8);
           endcase
-        else if (sub_en)
+        
+        if (sub_en)
           case (nxt_sub)
             9: subtraction(9, o_p.x, E);
             10: subtraction(10, B, o_p.x);
             12: subtraction(12, o_p.y, C);
           endcase
-        else if (add_en)
+        
+        if (add_en)
           case (nxt_add)
             8: addition(8, B, B);
             13: addition(13, i_p_l.y, i_p_l.y);
