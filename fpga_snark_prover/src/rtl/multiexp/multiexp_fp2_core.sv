@@ -58,6 +58,21 @@ module multiexp_fp2_core #(
 localparam DAT_BITS = $bits(FE_TYPE);
 localparam NUM_WRDS = $bits(FP2_TYPE)/DAT_BITS;
 
+// Fifo on the input in case we need to buffer inputs while our output is being read
+if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   i_pnt_scl_int_if (i_clk);
+
+axi_stream_fifo #(
+  .SIZE     ( NUM_WRDS ),
+  .DAT_BITS ( DAT_BITS ),
+  .CTL_BITS ( CTL_BITS )
+)
+input_fifo (
+  .i_clk ( i_clk            ), 
+  .i_rst ( i_rst            ),
+  .i_axi ( i_pnt_scl_if     ),
+  .o_axi ( i_pnt_scl_int_if )
+);
+
 if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   dbl_pnt_if_o (i_clk);
 if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   add_pnt_if_o (i_clk);
 
@@ -79,13 +94,13 @@ logic [$clog2(KEY_BITS)-1:0] key_cnt;
 logic [63:0] in_cnt;
 FE_TYPE key_l;
 
-logic [$bits(FP2_TYPE)-1:0] res;
+logic [$bits(FP2_TYPE)-1:0] res, input_l;
 logic [3:0] res_cnt, i_cnt;
 
 enum {IDLE, DBL, DBL_WAIT, ADD, ADD_WAIT, FINISHED} state;
 
 always_comb begin
-  i_pnt_scl_if.rdy = (state == IDLE || state == ADD) && (~add_pnt0_if_i.val || (add_pnt0_if_i.val && add_pnt0_if_i.rdy)); 
+  i_pnt_scl_int_if.rdy = (state == IDLE || state == ADD) && (~add_pnt0_if_i.val || (add_pnt0_if_i.val && add_pnt0_if_i.rdy)); 
 end
 
 always_ff @ (posedge i_clk) begin
@@ -104,7 +119,6 @@ always_ff @ (posedge i_clk) begin
     add_pnt0_if_i.reset_source();
     add_pnt1_if_i.reset_source();
     dbl_pnt_if_i.reset_source();
-    
   end else begin
     
     dbl_pnt_if_o.rdy <= 1;
@@ -121,10 +135,10 @@ always_ff @ (posedge i_clk) begin
         key_cnt <= KEY_BITS-1;
         in_cnt <= 0;
         if (~add_pnt0_if_i.val || (add_pnt0_if_i.val && add_pnt0_if_i.rdy)) begin
-          o_pnt_if.ctl <= i_pnt_scl_if.ctl;
-          if (i_pnt_scl_if.val && i_pnt_scl_if.ctl[0] == 0) begin
+          o_pnt_if.ctl <= i_pnt_scl_int_if.ctl;
+          if (i_pnt_scl_int_if.val && i_pnt_scl_int_if.ctl[0] == 0) begin
             res <= 0;
-            key_l <= i_pnt_scl_if.dat;
+            key_l <= i_pnt_scl_int_if.dat;
             i_cnt <= 1;
             state <= ADD;
           end else begin
@@ -132,17 +146,17 @@ always_ff @ (posedge i_clk) begin
             key_cnt <= 0;
             in_cnt <= i_num_in-1;
 
-            add_pnt0_if_i.dat <= i_pnt_scl_if.dat;
-            add_pnt0_if_i.val <= i_pnt_scl_if.val;
+            add_pnt0_if_i.dat <= i_pnt_scl_int_if.dat;
+            add_pnt0_if_i.val <= i_pnt_scl_int_if.val;
             add_pnt0_if_i.sop <= i_cnt == 0;
             add_pnt0_if_i.eop <= i_cnt == NUM_WRDS-1;
               
             add_pnt1_if_i.dat <= res[DAT_BITS-1:0];
-            add_pnt1_if_i.val <= i_pnt_scl_if.val;
+            add_pnt1_if_i.val <= i_pnt_scl_int_if.val;
             add_pnt1_if_i.sop <= i_cnt == 0;
             add_pnt1_if_i.eop <= i_cnt == NUM_WRDS-1;
               
-            if (i_pnt_scl_if.val) begin
+            if (i_pnt_scl_int_if.val) begin
               res <= {dbl_pnt_if_o.dat, res[$bits(FP2_TYPE)-1:DAT_BITS]};
               i_cnt <= i_cnt == NUM_WRDS-1 ? 0 : i_cnt + 1;
               if (i_cnt == NUM_WRDS-1) begin
@@ -178,22 +192,22 @@ always_ff @ (posedge i_clk) begin
       end
       ADD: begin
         if (i_cnt == 0) begin // First clock is the scalar
-          key_l <= i_pnt_scl_if.dat;
+          key_l <= i_pnt_scl_int_if.dat;
         end
           
         if (~add_pnt0_if_i.val || (add_pnt0_if_i.val && add_pnt0_if_i.rdy)) begin
 
-          add_pnt0_if_i.dat <= i_pnt_scl_if.dat;
+          add_pnt0_if_i.dat <= i_pnt_scl_int_if.dat;
           add_pnt0_if_i.sop <= i_cnt == 1;
           add_pnt0_if_i.eop <= i_cnt == NUM_WRDS;
-          add_pnt0_if_i.val <= i_cnt > 0 && (key_l[KEY_BITS-1] == 1) && i_pnt_scl_if.val; // We only add to result if the key bit is 1
+          add_pnt0_if_i.val <= i_cnt > 0 && (key_l[KEY_BITS-1] == 1) && i_pnt_scl_int_if.val; // We only add to result if the key bit is 1
           
           add_pnt1_if_i.dat <= res[DAT_BITS-1:0];
           add_pnt1_if_i.sop <= i_cnt == 1;
           add_pnt1_if_i.eop <= i_cnt == NUM_WRDS;
-          add_pnt1_if_i.val <= i_cnt > 0 && (key_l[KEY_BITS-1] == 1) && i_pnt_scl_if.val; // We only add to result if the key bit is 1
+          add_pnt1_if_i.val <= i_cnt > 0 && (key_l[KEY_BITS-1] == 1) && i_pnt_scl_int_if.val; // We only add to result if the key bit is 1
           
-          if (i_pnt_scl_if.val) begin
+          if (i_pnt_scl_int_if.val) begin
             if (i_cnt > 0) 
               res <= {res[DAT_BITS-1:0], res[$bits(FP2_TYPE)-1:DAT_BITS]};
             i_cnt <= i_cnt + 1;

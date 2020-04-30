@@ -271,14 +271,12 @@ always_ff @ (posedge i_clk) begin
             22: multiply(22, i_p1_l.z, i_p2_l.z);
             23: multiply(23, o_p.z, B);
           endcase
-
         // Additions
-        if (add_en)
+        else if (add_en)
           case (nxt_add)
             16:addition(16, i_p1_l.x, i_p1_l.x);
           endcase
-        
-        if (sub_en)
+        else if (sub_en)
           case (nxt_sub)
             8: subtraction(8, i_p2_l.x, i_p1_l.x);
             9: subtraction(9, C, A);
@@ -287,9 +285,8 @@ always_ff @ (posedge i_clk) begin
             18: subtraction(18, o_p.y, o_p.x);
             21: subtraction(21, o_p.y, i_p2_l.x);
           endcase
-
         // Assignments
-        if (eq_val[14] && ~eq_wait[15]) begin                          //15. o_p.y =  i_p1.x  [eq14]
+        else if (eq_val[14] && ~eq_wait[15]) begin                          //15. o_p.y =  i_p1.x  [eq14]
           eq_wait[15] <= 1;
           eq_val[15] <= 1;
           o_p.y <= i_p1_l.x;
