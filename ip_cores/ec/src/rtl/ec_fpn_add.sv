@@ -230,7 +230,7 @@ always_ff @ (posedge i_clk) begin
             eq_val[i_add_if.ctl[5:0]] <= 1;
           end
           case(i_add_if.ctl[5:0]) inside
-            16: i_p1_l.x <= fe_shift(i_p1_l.x[1], i_add_if.dat);
+            16: i_p1_l.x <= fe_shift(i_p1_l.x, i_add_if.dat);
             default: o_pt_if.err <= 1;
           endcase
         end
