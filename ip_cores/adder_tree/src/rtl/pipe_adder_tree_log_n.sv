@@ -76,9 +76,9 @@ generate
     // Pipeline here
     if (STAGE % STAGES_PER_PIPE == 0) begin : GEN_PIPELINE
        pipeline_bp_if_single #(
-          .DAT_BITS ( BIT_LEN*NUM_RESULTS ),
-          .CTL_BITS ( CTL_BITS ),
-          .BP       ( 0        ) // Cannot backpressure here
+          .DAT_BITS  ( BIT_LEN*NUM_RESULTS ),
+          .CTL_BITS  ( CTL_BITS ),
+          .RANDOM_BP ( 0        ) // Cannot backpressure here
         )
         pipeline_bp_if_single (
           .i_rst ( i_rst  ),
