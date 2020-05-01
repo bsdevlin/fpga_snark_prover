@@ -156,7 +156,7 @@ generate
       .STAGES_PER_PIPE ( 4               ),
       .N               ( 2               )
     )
-    adder_tree_log_n (
+    pipe_adder_tree_log_n (
       .i_clk   ( i_clk         ),
       .i_rst   ( i_rst         ),
       .i_terms ( terms         ),
@@ -214,12 +214,13 @@ generate
 endgenerate
 
 // Single pipeline on output
-pipeline_if_single #(
-  .DAT_BITS ( DAT_BITS*2 ),
-  .CTL_BITS ( CTL_BITS   )
+pipeline_bp_if_single #(
+  .DAT_BITS  ( DAT_BITS*2 ),
+  .CTL_BITS  ( CTL_BITS   )
 )
-pipeline_if_single (
+pipeline_bp_if_single (
   .i_rst ( i_rst     ),
+  .i_clk ( i_clk     ),
   .i_if  ( o_mul_int ),
   .o_if  ( o_mul     )
 );

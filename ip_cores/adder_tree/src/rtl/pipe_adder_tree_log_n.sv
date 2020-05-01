@@ -43,7 +43,6 @@ module pipe_adder_tree_log_n #(
   output logic [BIT_LEN-1:0]  o_s
 );
 
-
 generate
   if (NUM_ELEMENTS < N) begin
     always_comb begin
@@ -76,18 +75,22 @@ generate
     if_axi_stream #(.DAT_BITS(BIT_LEN*NUM_RESULTS), .CTL_BITS(CTL_BITS)) if_out (i_clk);
     // Pipeline here
     if (STAGE % STAGES_PER_PIPE == 0) begin : GEN_PIPELINE
-      pipeline_if_single #(
-          .DAT_BITS ( BIT_LEN  ),
-          .CTL_BITS ( CTL_BITS )
+       pipeline_bp_if_single #(
+          .DAT_BITS ( BIT_LEN*NUM_RESULTS ),
+          .CTL_BITS ( CTL_BITS ),
+          .BP       ( 0        ) // Cannot backpressure here
         )
-        pipeline_if_single (
+        pipeline_bp_if_single (
           .i_rst ( i_rst  ),
+          .i_clk ( i_clk  ),
           .i_if  ( if_in  ),
           .o_if  ( if_out )
         );
       always_comb begin
         { >> {if_in.dat}} = next_level_terms;
         if_in.val = i_val;
+        if_in.err = 0;
+        if_in.mod = 0;
         if_in.sop = i_sop;
         if_in.eop = i_eop;
         if_in.ctl = i_ctl;

@@ -57,7 +57,7 @@ generate
       end
     end
     
-    packet_arb # (
+    packet_arb_bp # (
       .DAT_BYTS     ( DAT_BYTS    ),
       .DAT_BITS     ( DAT_BITS    ),
       .CTL_BITS     ( CTL_BITS    ),
@@ -67,7 +67,7 @@ generate
       .PRIORITY_IN  ( 0           ),
       .OVERRIDE_CTL ( 0           )
     )
-    packet_arb (
+    packet_arb_bp (
       .i_clk ( i_clk ), 
       .i_rst ( i_rst ),
       .i_axi ( i_axi_int    ), 

@@ -40,10 +40,7 @@ localparam LOG2_MAX = MAX == 1 ? 1 : $clog2(MAX);
 // This uses pipeline stages
 generate
   genvar g, h;
-  
   localparam NUM_OUT_GRP = (NUM_OUT+N-1)/N;
-  
-  
   
   if (NUM_OUT_GRP == 1) begin: FIRST_STAGE_GEN
     logic [NUM_OUT-1:0] rdy_i; 
@@ -85,13 +82,14 @@ generate
         
         always_comb o_pipe.rdy = |rdy_o;
         
-        pipeline_if  #(
+        pipeline_bp_if  #(
           .DAT_BITS   ( DAT_BITS ),
           .CTL_BITS   ( CTL_BITS ),
           .NUM_STAGES ( 1        )
         )
-        pipeline_if_in (
+        pipeline_bp_if_in (
           .i_rst ( i_rst  ),
+          .i_clk ( i_clk  ),
           .i_if  ( i_pipe[g] ),
           .o_if  ( o_pipe )
         );
