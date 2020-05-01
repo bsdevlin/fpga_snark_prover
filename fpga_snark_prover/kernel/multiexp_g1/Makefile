@@ -167,6 +167,6 @@ clean:
 	-$(RMDIR) src/*.ll *v++* .Xil emconfig.json dltmp* xmltmp* *.log *.jou *.wcfg *.wdb
 
 cleanall: clean
-	-$(RMDIR) build_dir* $(F1_FILE)
+	-$(RMDIR) build_dir* $(F1_FILE) *.txt *.json *bin *.dcp *.tar
 	-$(RMDIR) _x.* *xclbin.run_summary qemu-memory-_* emulation/ _vimage/ pl* start_simulation.sh *.xclbin
 	-$(RMDIR) ./tmp_kernel_pack* ./packaged_kernel* 
