@@ -194,17 +194,17 @@ add_files -norecurse [glob $path_to_repo_top/ip_cores/ec/src/rtl/ec_fpn_add.sv]
 add_files -norecurse [glob $path_to_repo_top/ip_cores/ec/src/rtl/ec_fpn_dbl.sv]
 add_files -norecurse [glob $path_to_repo_top/ip_cores/montgomery_mult/src/rtl/*.sv]
 add_files -norecurse [glob $path_to_repo_top/ip_cores/multiplier/src/rtl/*.sv]
+add_files -norecurse [glob $path_to_repo_top/ip_cores/pipeline_bp/src/rtl/*.sv]
 add_files -norecurse [glob $path_to_repo_top/ip_cores/tree_packet_arb/src/rtl/*.sv]
 add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/multiexp_fp2_core.sv
 add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/multiexp_fp2_top.sv
-add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/multiexp_fp_wrapper.sv
-######
+add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/bn128_multiexp_fp_wrapper.sv
 
 set_property top $krnl_name [current_fileset]
 
-#####This is an example of adding a ILA core for debug:
+# An example of a ILA debug core:
 #create_ip -name ila -vendor xilinx.com -library ip -version 6.2 -module_name ila_0
-#set_property -dict [list CONFIG.C_PROBE0_WIDTH {64} CONFIG.C_PROBE5_WIDTH {64} CONFIG.C_PROBE10_WIDTH {64} CONFIG.C_NUM_OF_PROBES {11} CONFIG.C_EN_STRG_QUAL {1} CONFIG.C_INPUT_PIPE_STAGES {2} CONFIG.C_ADV_TRIGGER {true} CONFIG.ALL_PROBE_SAME_MU_CNT {4} CONFIG.C_PROBE6_MU_CNT {4} CONFIG.C_PROBE5_MU_CNT {4} CONFIG.C_PROBE4_MU_CNT {4} CONFIG.C_PROBE3_MU_CNT {4} CONFIG.C_PROBE2_MU_CNT {4} CONFIG.C_PROBE1_MU_CNT {4} CONFIG.C_PROBE0_MU_CNT {4} CONFIG.C_PROBE7_MU_CNT {4} CONFIG.C_PROBE8_MU_CNT {4} CONFIG.C_PROBE9_MU_CNT {4} CONFIG.C_DATA_DEPTH {4096}] [get_ips ila_0]
+#set_property -dict [list CONFIG.C_PROBE0_WIDTH {64} CONFIG.C_PROBE1_WIDTH {64} CONFIG.C_PROBE2_WIDTH {64} CONFIG.C_PROBE3_WIDTH {64} CONFIG.C_PROBE4_WIDTH {64} CONFIG.C_PROBE5_WIDTH {64} CONFIG.C_PROBE6_WIDTH {64} CONFIG.C_PROBE7_WIDTH {64} CONFIG.C_PROBE8_WIDTH {64} CONFIG.C_PROBE9_WIDTH {64} CONFIG.C_NUM_OF_PROBES {10} CONFIG.C_EN_STRG_QUAL {1} CONFIG.C_INPUT_PIPE_STAGES {2} CONFIG.C_ADV_TRIGGER {false} CONFIG.ALL_PROBE_SAME_MU_CNT {4} CONFIG.C_DATA_DEPTH {4096}] [get_ips ila_0]
 #generate_target {instantiation_template} [get_files ila_0.xci]
 #set_property generate_synth_checkpoint false [get_files ila_0.xci]
 
