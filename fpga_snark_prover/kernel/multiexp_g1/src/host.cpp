@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 		mpz_t s;
 		mpz_init(s);
 		mpz_urandomb(s, random_state, BN128_BITS);
-		Bn128::af_p_t<Bn128::f_t<1>> p = Bn128::G1_af;
+		Bn128::af_p_t<Bn128::f_t<1>> p = Bn128::G1_af * s;
 		Bn128::af_export((void*)&point_input[i*2*BN128_BITS/64], Bn128::to_mont(p));
 		Bn128::fe_export((void*)&scalar_input[i*BN128_BITS/64], s);
 		if (check_result)
