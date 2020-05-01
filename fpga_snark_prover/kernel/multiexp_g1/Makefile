@@ -33,6 +33,7 @@ TARGET = hw_emu
 HOST_ARCH := x86
 SYSROOT := 
 DEVICE := $(AWS_PLATFORM)
+DEBUG = no
 
 include ./utils.mk
 
@@ -81,8 +82,13 @@ BINARY_CONTAINERS += $(BUILD_DIR)/$(KERNEL_NAME).xclbin
 BINARY_CONTAINER_OBJS += $(TEMP_DIR)/$(KERNEL_NAME).xo
 
 BINARY_CONTAINER_AWS = $(KERNEL_NAME).awsxclbin
-F1_FILE := to_aws/to_f1.tar.gz
+F1_FILE := to_f1.tar.gz
 S3_BUCKET := your_bucket_name
+
+
+ifeq ($(DEBUG), yes)
+	LDCLFLAGS += --dk chipscope:multiexp_g1_kernel_1 --xp "param:chipscope.enablePRFlow=true"
+endif
 
 CP = cp -rf
 
@@ -104,7 +110,7 @@ $(TEMP_DIR)/$(KERNEL_NAME).xo: src/kernel.xml scripts/package_kernel.tcl scripts
 # Building kernel
 $(BUILD_DIR)/$(KERNEL_NAME).xclbin: $(BINARY_CONTAINER_OBJS)
 	mkdir -p $(BUILD_DIR)
-	$(VPP) $(CLFLAGS) --temp_dir $(BUILD_DIR) -l $(LDCLFLAGS) -o'$@' $(+)
+	$(VPP) $(CLFLAGS) --temp_dir $(BUILD_DIR) -l $(LDCLFLAGS) $(DEBUG) -o'$@' $(+)
 
 # Building Host
 $(EXECUTABLE): check-xrt $(HOST_SRCS) $(HOST_HDRS)
@@ -128,7 +134,6 @@ endif
 .PHONY: to_f1
 to_f1: $(F1_FILE)
 $(F1_FILE): $(EXECUTABLE) $(BINARY_CONTAINER_AWS)
-	mkdir -p to_aws
 	tar czvf $(F1_FILE) $(BINARY_CONTAINER_AWS) $(EXECUTABLE) *afi_id.txt
 
 
@@ -162,6 +167,6 @@ clean:
 	-$(RMDIR) src/*.ll *v++* .Xil emconfig.json dltmp* xmltmp* *.log *.jou *.wcfg *.wdb
 
 cleanall: clean
-	-$(RMDIR) build_dir* 
+	-$(RMDIR) build_dir* $(F1_FILE)
 	-$(RMDIR) _x.* *xclbin.run_summary qemu-memory-_* emulation/ _vimage/ pl* start_simulation.sh *.xclbin
 	-$(RMDIR) ./tmp_kernel_pack* ./packaged_kernel* 
