@@ -25,7 +25,7 @@ import common_pkg::*;
 localparam CLK_PERIOD = 100;
 
 localparam NUM_IN = 16;
-localparam NUM_CORES = 16;
+localparam NUM_CORES = 8;
 localparam NUM_ARITH = 1;
 
 localparam DAT_BITS = $bits(fe_t);
@@ -33,10 +33,9 @@ localparam DAT_BITS = $bits(fe_t);
 logic clk, rst;
 
 localparam DAT_IN0 = $bits(fe_t) + $bits(jb_point_t);
-localparam DAT_IN1 = $bits(jb_point_t);
 
-if_axi_stream #(.DAT_BYTS((DAT_IN0+7)/8), .CTL_BITS(8)) i_pnt_scl_if (clk);
-if_axi_stream #(.DAT_BYTS((DAT_IN1+7)/8), .CTL_BITS(8)) o_pnt_if (clk);
+if_axi_stream #(.DAT_BYTS(($bits(fe_t)+7)/8), .CTL_BITS(8)) i_pnt_scl_if (clk);
+if_axi_stream #(.DAT_BYTS(($bits(fe_t)+7)/8), .CTL_BITS(8)) o_pnt_if (clk);
 
 jb_point_t in_p [];
 fe_t in_s [];
@@ -53,9 +52,11 @@ initial begin
   forever #(CLK_PERIOD/2) clk = ~clk;
 end
 
-multiexp_top #(
+multiexp_fp2_top #(
   .FP_TYPE            ( jb_point_t ),
   .FE_TYPE            ( fe_t       ),
+  .FP2_TYPE           ( jb_point_t ),
+  .FE2_TYPE           ( fe_t       ),      
   .P                  ( P          ),
   .NUM_CORES          ( NUM_CORES ),
   .NUM_ARITH          ( NUM_ARITH ),
@@ -75,15 +76,16 @@ multiexp_top (
 );
 
 
+
 task test0();
 begin
   integer signed get_len, start_time, finish_time;
   logic [common_pkg::MAX_SIM_BYTS*8-1:0] get_dat;
+  
   jb_point_t out;
   af_point_t expected;
   
   jb_point_t int_res [NUM_CORES];
-  
   
   cnt = DAT_BITS-1;
 
