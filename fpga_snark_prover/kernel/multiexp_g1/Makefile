@@ -86,7 +86,7 @@ F1_FILE := to_f1.tar.gz
 S3_BUCKET := your_bucket_name
 
 
-ifeq ($(DEBUG), yes)
+ifeq ($(DEBUG),yes)
 	LDCLFLAGS += --dk chipscope:multiexp_g1_kernel_1 --xp "param:chipscope.enablePRFlow=true"
 endif
 
@@ -110,7 +110,7 @@ $(TEMP_DIR)/$(KERNEL_NAME).xo: src/kernel.xml scripts/package_kernel.tcl scripts
 # Building kernel
 $(BUILD_DIR)/$(KERNEL_NAME).xclbin: $(BINARY_CONTAINER_OBJS)
 	mkdir -p $(BUILD_DIR)
-	$(VPP) $(CLFLAGS) --temp_dir $(BUILD_DIR) -l $(LDCLFLAGS) $(DEBUG) -o'$@' $(+)
+	$(VPP) $(CLFLAGS) --temp_dir $(BUILD_DIR) -l $(LDCLFLAGS) -o'$@' $(+)
 
 # Building Host
 $(EXECUTABLE): check-xrt $(HOST_SRCS) $(HOST_HDRS)
