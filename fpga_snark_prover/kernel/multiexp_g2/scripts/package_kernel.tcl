@@ -199,7 +199,7 @@ add_files -norecurse [glob $path_to_repo_top/ip_cores/pipeline_bp/src/rtl/*.sv]
 add_files -norecurse [glob $path_to_repo_top/ip_cores/tree_packet_arb/src/rtl/*.sv]
 add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/multiexp_fp2_core.sv
 add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/multiexp_fp2_top.sv
-add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/multiexp_fp2_wrapper.sv
+add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/bn128_multiexp_fp2_wrapper.sv
 ######
 
 set_property top $krnl_name [current_fileset]

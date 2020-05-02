@@ -1,0 +1,14 @@
+./hdl/*.sv
+../../../fpga_snark_prover/src/rtl/top/bn128_pkg.sv
+../../../submodules/fpga/ip_cores/common/src/rtl/*.sv
+../../../submodules/fpga/ip_cores/fifo/src/rtl/axi_stream_fifo.sv
+../../../submodules/fpga/ip_cores/util/src/rtl/*.sv
+../../../ip_cores/adder_tree/src/rtl/*.sv
+../../../ip_cores/ec/src/rtl/*.sv
+../../../ip_cores/montgomery_mult/src/rtl/*.sv
+../../../ip_cores/multiplier/src/rtl/*.sv
+../../../ip_cores/tree_packet_arb/src/rtl/*.sv
+../../../ip_cores/pipeline_bp/src/rtl/*.sv
+../../../fpga_snark_prover/src/rtl/multiexp/multiexp_fp2_core.sv
+../../../fpga_snark_prover/src/rtl/multiexp/multiexp_fp2_top.sv
+../../../fpga_snark_prover/src/rtl/multiexp/bn128_multiexp_fp_wrapper.sv
