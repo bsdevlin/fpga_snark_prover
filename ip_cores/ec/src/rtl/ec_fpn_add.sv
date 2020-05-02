@@ -101,8 +101,6 @@ logic [2:0] o_cnt;
 FE_TYPE A, B, C, D;
 FP_TYPE i_p1_l, i_p2_l, o_p;
 
-logic [$bits(FP_TYPE)-1:0] o_p_flat;
-
 logic [$bits(FP_TYPE)/$bits(FE_TYPE_ARITH)-1:0] same_chk, zero_check_p1, zero_check_p2;
 logic chks_pass;
 
@@ -135,7 +133,6 @@ always_ff @ (posedge i_clk) begin
     C <= 0;
     D <= 0;
     same_chk <= 0;
-    o_p_flat <= 0;
     zero_check_p1 <= 0;
     zero_check_p2 <= 0;
     {add_o_cnt, sub_o_cnt, mul_o_cnt, o_cnt} <= 0;
@@ -164,7 +161,6 @@ always_ff @ (posedge i_clk) begin
         C <= 0;
         D <= 0;
         o_cnt <= 0;
-        o_p_flat <= 0;
         {mul_en, add_en, sub_en} <= 0;
         {nxt_mul, nxt_add, nxt_sub} <= 0;
         if (i_pt1_if.val && i_pt1_if.rdy && i_pt2_if.val && i_pt2_if.rdy) begin
@@ -185,13 +181,13 @@ always_ff @ (posedge i_clk) begin
         if (&same_chk) begin
           state <= FINISHED;
           o_pt_if.err <= 1;
-          o_p_flat <= i_p1_l; // Return original point
+          o_p <= i_p1_l; // Return original point
         end else if (&zero_check_p1) begin
           state <= FINISHED;
-          o_p_flat <= i_p2_l; // Return p2
+          o_p <= i_p2_l; // Return p2
         end else if (&zero_check_p2) begin
           state <= FINISHED;
-          o_p_flat <= i_p1_l; // Return p1
+          o_p <= i_p1_l; // Return p1
         end
         
         if (~sub_en) get_next_sub();
@@ -295,7 +291,6 @@ always_ff @ (posedge i_clk) begin
 
         if (&eq_val) begin
           state <= FINISHED;
-          o_p_flat <= o_p;
         end
       end
       {FINISHED}: begin
@@ -304,8 +299,8 @@ always_ff @ (posedge i_clk) begin
         zero_check_p2 <= 0;
         // Stream out point
         if (~o_pt_if.val || (o_pt_if.val && o_pt_if.rdy)) begin
-          o_pt_if.dat <= o_p_flat[ARITH_BITS-1:0];
-          o_p_flat <= o_p_flat >> ARITH_BITS;
+          o_p <= jb_shift(o_p, 0);
+          o_pt_if.dat <= o_p;
           o_pt_if.val <= 1;
           o_pt_if.sop <= o_cnt == 0;
           o_pt_if.eop <= o_cnt == NUM_WRDS-1; 

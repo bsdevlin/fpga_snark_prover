@@ -62,9 +62,10 @@ localparam NUM_WRDS = $bits(FP2_TYPE)/DAT_BITS;
 if_axi_stream #(.DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS))   i_pnt_scl_int_if (i_clk);
 
 axi_stream_fifo #(
-  .SIZE     ( NUM_WRDS ),
-  .DAT_BITS ( DAT_BITS ),
-  .CTL_BITS ( CTL_BITS )
+  .SIZE     ( 1 << $clog2(NUM_WRDS) ),
+  .DAT_BITS ( DAT_BITS              ),
+  .CTL_BITS ( CTL_BITS              ),
+  .MOD_BITS ( 3                     )
 )
 input_fifo (
   .i_clk ( i_clk            ), 
@@ -94,7 +95,7 @@ logic [$clog2(KEY_BITS)-1:0] key_cnt;
 logic [63:0] in_cnt;
 FE_TYPE key_l;
 
-logic [$bits(FP2_TYPE)-1:0] res, input_l;
+logic [$bits(FP2_TYPE)-1:0] res;
 logic [3:0] res_cnt, i_cnt;
 
 enum {IDLE, DBL, DBL_WAIT, ADD, ADD_WAIT, FINISHED} state;

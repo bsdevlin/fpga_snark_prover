@@ -82,7 +82,6 @@ logic [5:0] nxt_mul, nxt_add, nxt_sub;
 // Temporary variables
 FE_TYPE A, B, C, D, E;
 FP_TYPE i_p_l, o_p;
-logic [$bits(FP_TYPE)-1:0] o_p_flat;
 logic [$bits(FP_TYPE)/$bits(FE_TYPE_ARITH)-1:0] zero_check;
 logic chks_pass;
 
@@ -105,7 +104,6 @@ always_ff @ (posedge i_clk) begin
     state <= IDLE;
     eq_wait <= 0;
     i_p_l <= 0;
-    o_p_flat <= 0;
     o_p <= 0;
     A <= 0;
     B <= 0;
@@ -160,7 +158,7 @@ always_ff @ (posedge i_clk) begin
         
         if (&zero_check) begin
           state <= FINISHED;
-          o_p_flat <= 0;
+          o_p <= 0;
         end
         
         if (~sub_en) get_next_sub();
@@ -241,14 +239,13 @@ always_ff @ (posedge i_clk) begin
 
         if (&eq_val) begin
           state <= FINISHED;
-          o_p_flat <= o_p;
         end
       end
       {FINISHED}: begin
         // Stream out point
         if (~o_pt_if.val || (o_pt_if.val && o_pt_if.rdy)) begin
-          o_pt_if.dat <= o_p_flat;
-          o_p_flat <= o_p_flat >> $bits(FE_TYPE_ARITH);
+          o_p <= jb_shift(o_p, 0);
+          o_pt_if.dat <= o_p;
           o_pt_if.val <= 1;
           o_pt_if.sop <= o_cnt == 0;
           o_pt_if.eop <= o_cnt == NUM_WRDS-1; 
