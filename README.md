@@ -22,7 +22,7 @@ The goal of this project is to accelerate zk-SNARK proof creation by offloading 
 
 ### Running at home on a FPGA ###
 
-1. Clone this repo locally and include the RTL code into the top level for your board (only tested on Xilinx Ultrasacle+ parts). Top level files are in fpga_snark_prover/src/rtl/.
+1. Clone this repo locally and include the RTL code into the top level for your board (only tested on Xilinx Ultrascale+ parts). Top level files are in fpga_snark_prover/src/rtl/.
 2. Run this on the Amazon AWS infrastructure. Instructions are in the example projects are [here](fpga_snark_prover/kernel/README.md).
 
 ## Folder structure ##
@@ -30,10 +30,8 @@ The goal of this project is to accelerate zk-SNARK proof creation by offloading 
 ```
 fpga_snark_prover/  -- Files directly related to this project.
 ip_cores/           -- RTL ip cores for general use in this project.
-submodules/         -- Git submodules that reference other repositories.**
+submodules/         -- Git submodules that reference other repositories.
 ```
-
-** Make sure you have synced the git submodules folder in ```fpga_snark_prover/submodules/``` with "git submodule update".
 
 Each goal will have a corresponding RTL top level and source in the ```fpga_snark_prover``` folder which can be ran separately, as well as a RTL kernel 
 pre-compiled (along with instructions to compile the binary if needed). The kernels will be able to run in a Amazon AWS Vivado Vitis (SDAccel) environment as accelerators,

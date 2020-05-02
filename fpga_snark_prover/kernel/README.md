@@ -11,7 +11,7 @@ This diagram shows the top level view when using the FPGA SNARK prover in a AWS 
 
 Several kernels have been compiled from the RTL code that allows for easy inclusion into a host.cpp file. Multiple kernels can be linked and 
 exercised depending on what functionality is needed.
-Each kernels operates on DRAM memory on the FPGA, which has 4 DDR banks of 16GB each. When building the kernel will automatically get assigned to a 16GB DDR bank and only able to access that bank - to change this you need to modify the kernel.cdf file.
+Each kernels operates on DRAM memory on the FPGA, which has 4 DDR banks of 16GB each. When building the kernel will automatically get assigned to a 16GB DDR bank and only able to access that bank - to change this you need to modify the ``src/kernel.cfg`` file.
 
 Each kernel has a **hw_emu** and **hw** makefile targets. 
 The **hw_emu** target create a ``build_output/<kernel_name>.xclbin`` file and runs hardware simulation which will verify the design against the host.cpp. This takes around 5min to build.
@@ -28,7 +28,7 @@ src/kernel.cfg                 -- Kernel config options, here the SLR or DDR ban
 src/kernel.xml                 -- XML describing the kernel, do not change
 src/hdl/*                      -- RTL files used to generate the kernel logic
 scripts/*                      -- Scripts used to generate output files, do not change
-to_aws/to_f1.tar.gz            -- This is a pre built file that can be used for testing without having to build from source
+reference/to_f1.tar.gz         -- This tar contains a prebuild .awsxclbin that can be used for testing on a F1 instance without having to build from source
 README.md                      -- Kernel specific readme
 Makefile, utils.mk             -- Makefiles
 xrt.ini                        -- Used during testing with TARGET=hw_emu, you can uncomment the two lines to be able to see the simulation waveform
@@ -128,7 +128,6 @@ Calculates the G2 or G1 multi-exponentiation.  At the moment there is a limitati
 | 1 | point_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of input G2 points in Montgomery form affine coordinates. |
 | 2 | scalar_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of 256 bit scalars. |
 | 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G2 Montgomery form jacobian point coordinates. |
-
 
 ### Top ###
 This builds all the kernels into a single FPGA image that can use one of each of the kernels. IN PROGRESS

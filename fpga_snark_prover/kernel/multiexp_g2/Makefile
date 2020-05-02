@@ -20,8 +20,8 @@ help::
 	$(ECHO) "  make build TARGET=<hw_emu/hw>"
 	$(ECHO) "      Command to build xclbin application."
 	$(ECHO) ""
-	$(ECHO) "  make to_f1 S3_BUCKET=<S3 name of your bucket>"
-	$(ECHO) "      Command to create the AFI and .awsxclbin required to run on the AWS FPGA. You need to have a S3 bucket to upload files to"	
+	$(ECHO) "  make to_f1 S3_BUCKET=<S3 name of your bucket> TARGET=hw"
+	$(ECHO) "      Command to create the AFI and .awsxclbin required to run on the AWS FPGA. You need to have a S3 bucket to upload files to. Only works with hw target."	
 	$(ECHO) ""
 	
 # Points to top directory of Git repository
@@ -29,16 +29,17 @@ COMMON_REPO = $(AWS_FPGA_REPO_DIR)/Vitis/examples/xilinx/
 PWD = $(shell readlink -f .)
 ABS_COMMON_REPO = $(shell readlink -f $(COMMON_REPO))
 
-TARGET := hw_emu
+TARGET = hw_emu
 HOST_ARCH := x86
 SYSROOT := 
 DEVICE := $(AWS_PLATFORM)
+DEBUG = no
 
 include ./utils.mk
 
 XSA := $(call device2xsa, $(DEVICE))
-TEMP_DIR := ./_x.$(TARGET).$(XSA)
-BUILD_DIR := ./build_dir.$(TARGET).$(XSA)
+TEMP_DIR = ./_x.$(TARGET).$(XSA)
+BUILD_DIR = ./build_dir.$(TARGET).$(XSA)
 
 VPP := v++
 
@@ -81,8 +82,13 @@ BINARY_CONTAINERS += $(BUILD_DIR)/$(KERNEL_NAME).xclbin
 BINARY_CONTAINER_OBJS += $(TEMP_DIR)/$(KERNEL_NAME).xo
 
 BINARY_CONTAINER_AWS = $(KERNEL_NAME).awsxclbin
-F1_FILE := to_aws/to_f1.tar.gz
+F1_FILE := to_f1.tar.gz
 S3_BUCKET := your_bucket_name
+
+
+ifeq ($(DEBUG), yes)
+	LDCLFLAGS += --dk chipscope:multiexp_g2_kernel_1 --xp "param:chipscope.enablePRFlow=true"
+endif
 
 CP = cp -rf
 
@@ -104,7 +110,7 @@ $(TEMP_DIR)/$(KERNEL_NAME).xo: src/kernel.xml scripts/package_kernel.tcl scripts
 # Building kernel
 $(BUILD_DIR)/$(KERNEL_NAME).xclbin: $(BINARY_CONTAINER_OBJS)
 	mkdir -p $(BUILD_DIR)
-	$(VPP) $(CLFLAGS) --temp_dir $(BUILD_DIR) -l $(LDCLFLAGS) -o'$@' $(+)
+	$(VPP) $(CLFLAGS) --temp_dir $(BUILD_DIR) -l $(LDCLFLAGS) $(DEBUG) -o'$@' $(+)
 
 # Building Host
 $(EXECUTABLE): check-xrt $(HOST_SRCS) $(HOST_HDRS)
@@ -117,7 +123,7 @@ $(EMCONFIG_DIR)/emconfig.json:
 NUM_IN :=
 EMU_MODE :=
 ifeq ($(TARGET), hw_emu)
-	NUM_IN := 0x8
+	NUM_IN := 0x10
 	EMU_MODE := XCL_EMULATION_MODE=$(TARGET)
 else
 	NUM_IN := 0x10000
@@ -127,10 +133,10 @@ endif
 # Gather files needed to run on the FPGA
 .PHONY: to_f1
 to_f1: $(F1_FILE)
- 
-$(F1_FILE): $(EXECUTABLE) $(BINARY_CONTAINER_AWS) 
-	mkdir -p to_aws
+$(F1_FILE): $(EXECUTABLE) $(BINARY_CONTAINER_AWS)
 	tar czvf $(F1_FILE) $(BINARY_CONTAINER_AWS) $(EXECUTABLE) *afi_id.txt
+
+
 
 # This takes the output FPGA files and creates an AFI to run on AWS FPGA hosts
 $(BINARY_CONTAINER_AWS): $(BUILD_DIR)/$(KERNEL_NAME).xclbin
@@ -161,6 +167,6 @@ clean:
 	-$(RMDIR) src/*.ll *v++* .Xil emconfig.json dltmp* xmltmp* *.log *.jou *.wcfg *.wdb
 
 cleanall: clean
-	-$(RMDIR) build_dir* 
+	-$(RMDIR) build_dir* $(F1_FILE)
 	-$(RMDIR) _x.* *xclbin.run_summary qemu-memory-_* emulation/ _vimage/ pl* start_simulation.sh *.xclbin
 	-$(RMDIR) ./tmp_kernel_pack* ./packaged_kernel* 

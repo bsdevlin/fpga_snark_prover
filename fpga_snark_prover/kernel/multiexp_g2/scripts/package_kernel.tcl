@@ -195,6 +195,7 @@ add_files -norecurse [glob $path_to_repo_top/ip_cores/ec/src/rtl/ec_fpn_add.sv]
 add_files -norecurse [glob $path_to_repo_top/ip_cores/ec/src/rtl/ec_fpn_dbl.sv]
 add_files -norecurse [glob $path_to_repo_top/ip_cores/montgomery_mult/src/rtl/*.sv]
 add_files -norecurse [glob $path_to_repo_top/ip_cores/multiplier/src/rtl/*.sv]
+add_files -norecurse [glob $path_to_repo_top/ip_cores/pipeline_bp/src/rtl/*.sv]
 add_files -norecurse [glob $path_to_repo_top/ip_cores/tree_packet_arb/src/rtl/*.sv]
 add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/multiexp_fp2_core.sv
 add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/multiexp_fp2_top.sv
