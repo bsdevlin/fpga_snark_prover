@@ -192,7 +192,7 @@ foreach line $lines {
      add_files -norecurse $line
 }
 ######
-#
+
 set_property top $krnl_name [current_fileset]
 
 update_compile_order -fileset sources_1

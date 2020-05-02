@@ -14,6 +14,7 @@
 ../../../submodules/fpga/ip_cores/util/src/rtl/subtracter_pipe.sv
 ../../../submodules/fpga/ip_cores/util/src/rtl/resource_share.sv
 ../../../submodules/fpga/ip_cores/util/src/rtl/karatsuba_ofman_mult.sv
+../../../submodules/fpga/ip_cores/util/src/rtl/packet_arb.sv
 ../../../ip_cores/adder_tree/src/rtl/pipe_adder_tree_log_n.sv
 ../../../ip_cores/ec/src/rtl/ec_fpn_add.sv
 ../../../ip_cores/ec/src/rtl/ec_fpn_dbl.sv

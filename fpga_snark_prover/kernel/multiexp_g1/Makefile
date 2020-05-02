@@ -85,6 +85,7 @@ BINARY_CONTAINER_AWS = $(KERNEL_NAME).awsxclbin
 F1_FILE := to_f1.tar.gz
 S3_BUCKET := your_bucket_name
 
+HDL_FILES := $(shell cat ./src/includes.txt)
 
 ifeq ($(DEBUG),yes)
 	LDCLFLAGS += --dk chipscope:multiexp_g1_kernel_1 --xp "param:chipscope.enablePRFlow=true"
@@ -103,7 +104,7 @@ build: $(BINARY_CONTAINERS)
 
 VIVADO := $(XILINX_VIVADO)/bin/vivado
 
-$(TEMP_DIR)/$(KERNEL_NAME).xo: src/kernel.xml scripts/package_kernel.tcl scripts/gen_xo.tcl src/hdl/*.sv src/hdl/*.v 
+$(TEMP_DIR)/$(KERNEL_NAME).xo: src/kernel.xml src/kernel.cfg scripts/package_kernel.tcl scripts/gen_xo.tcl $(HDL_FILES) 
 	mkdir -p $(TEMP_DIR)
 	$(VIVADO) -mode batch -source scripts/gen_xo.tcl -tclargs $(TEMP_DIR)/$(KERNEL_NAME).xo $(KERNEL_NAME) $(TARGET) $(DEVICE) $(XSA)
 

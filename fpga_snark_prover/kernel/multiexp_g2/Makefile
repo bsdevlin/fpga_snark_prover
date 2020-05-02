@@ -87,7 +87,7 @@ S3_BUCKET := your_bucket_name
 
 HDL_FILES := $(shell cat ./src/includes.txt)
 
-ifeq ($(DEBUG), yes)
+ifeq ($(DEBUG),yes)
 	LDCLFLAGS += --dk chipscope:multiexp_g2_kernel_1 --xp "param:chipscope.enablePRFlow=true"
 endif
 

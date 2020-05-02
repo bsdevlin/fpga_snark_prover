@@ -182,23 +182,16 @@ set path_to_repo_top "../../.."
 
 create_project -force kernel_pack $path_to_tmp_project 
 
-
-###### Add all our RTL - these are not all in the Makefile so if you make source changes please regenerate the .xo output
-add_files -norecurse [glob $path_to_hdl/*.v $path_to_hdl/*.sv]
-add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/top/bn128_pkg.sv
-add_files -norecurse [glob $path_to_repo_top/submodules/fpga/ip_cores/common/src/rtl/*.sv]
-add_files -norecurse $path_to_repo_top/submodules/fpga/ip_cores/fifo/src/rtl/axi_stream_fifo.sv
-add_files -norecurse [glob $path_to_repo_top/submodules/fpga/ip_cores/util/src/rtl/*.sv]
-add_files -norecurse $path_to_repo_top/ip_cores/adder_tree/src/rtl/pipe_adder_tree_log_n.sv
-add_files -norecurse [glob $path_to_repo_top/ip_cores/ec/src/rtl/ec_fpn_add.sv]
-add_files -norecurse [glob $path_to_repo_top/ip_cores/ec/src/rtl/ec_fpn_dbl.sv]
-add_files -norecurse [glob $path_to_repo_top/ip_cores/montgomery_mult/src/rtl/*.sv]
-add_files -norecurse [glob $path_to_repo_top/ip_cores/multiplier/src/rtl/*.sv]
-add_files -norecurse [glob $path_to_repo_top/ip_cores/pipeline_bp/src/rtl/*.sv]
-add_files -norecurse [glob $path_to_repo_top/ip_cores/tree_packet_arb/src/rtl/*.sv]
-add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/multiexp_fp2_core.sv
-add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/multiexp_fp2_top.sv
-add_files -norecurse $path_to_repo_top/fpga_snark_prover/src/rtl/multiexp/bn128_multiexp_fp_wrapper.sv
+###### Add all our RTL
+set fp [open "./src/includes.txt" r]
+set lines [split [read $fp] "\n"]
+set lines [lrange $lines 0 end-1]
+close $fp
+puts $lines
+foreach line $lines {
+     add_files -norecurse $line
+}
+######
 
 set_property top $krnl_name [current_fileset]
 
