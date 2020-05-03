@@ -318,7 +318,7 @@ ec_fpn_dbl (
 
 // We optionally add this block so that we can operate on fe_t elements
 generate
-  if ($bits(FE_TYPE) == $bits(FE2_TYPE)/2) begin
+  if ($bits(FE_TYPE) == $bits(FE2_TYPE)/2) begin : GEN_FE2_MUL
     ec_fe2_mul_s #(
       .FE_TYPE  ( FE_TYPE  ),
       .CTL_BITS ( CTL_BITS )
@@ -400,7 +400,7 @@ resource_share_bp_sub (
 );
 
 // Multiplier is shared between cores
-resource_share_bp # (
+resource_share # (
   .NUM_IN       ( 2          ),
   .DAT_BITS     ( 2*DAT_BITS ),
   .CTL_BITS     ( CTL_BITS   ),
@@ -408,7 +408,7 @@ resource_share_bp # (
   .PIPELINE_IN  ( 1 ),
   .PIPELINE_OUT ( 1 )
 )
-resource_share_bp_mul (
+resource_share_mul (
   .i_clk ( i_clk ),
   .i_rst ( i_rst ),
   .i_axi ( mul_fe2_if_o[1:0] ),
