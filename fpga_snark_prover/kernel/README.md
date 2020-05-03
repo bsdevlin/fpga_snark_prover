@@ -17,8 +17,8 @@ Each kernel has a **hw_emu** and **hw** makefile targets.
 The **hw_emu** target create a ``build_output/<kernel_name>.xclbin`` file and runs hardware simulation which will verify the design against the host.cpp. This takes around 5min to build.
 The **hw** target will build the ``build_output/<kernel_name>.xclbin`` and ``.awsxclbin`` file which is used to create an AFI for use on Amazon AWS F1 instances with real hardware. This takes around 4 hours to build.
 
-For more information please see [here](https://github.com/aws/aws-fpga/tree/master/Vitis). This document goes over the accelerator platform and different configuration settings you can change in the kernel.cfg file: [Vitis Unified Software
-Platform Documentation](https://www.xilinx.com/support/documentation/sw_manuals/xilinx2019_2/ug1393-vitis-application-acceleration.pdf).
+This document goes over the accelerator platform and different configuration settings you can change in the kernel.cfg file: [Vitis Unified Software
+Platform Documentation](https://www.xilinx.com/support/documentation/sw_manuals/xilinx2019_2/ug1393-vitis-application-acceleration.pdf). The offical Vitis github is [here]For more information please see [here](https://github.com/aws/aws-fpga/tree/master/Vitis).
 
 Each kernel folder contains the following files:
 
@@ -73,6 +73,10 @@ make all TARGET=hw
 8. Build the .awsxclbin and AFI. This will generate a tar ``to_f1.tar.gz`` that can be scp'ed onto a F1 instance and run on a real FPGA. You might need to run ``aws configure`` to setup the login settings to upload to your S3 bucket.
 ```
 make to_f1 S3_BUCKET=<S3 name of your bucket> TARGET=hw
+```
+Note: After the AFI has been created and tested, if you want to make it public you need to make it public:
+```
+aws ec2 modify-fpga-image-attribute --fpga-image-id "afi-xxx" --attribute loadPermission --load-permission Add=[{Group=all}]
 ```
 
 ### Testing on the FPGA ###
