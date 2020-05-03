@@ -74,6 +74,10 @@ make all TARGET=hw
 ```
 make to_f1 S3_BUCKET=<S3 name of your bucket> TARGET=hw
 ```
+Note: After the AFI has been created and tested, if you want to make it public you need to make it public:
+```
+aws ec2 modify-fpga-image-attribute --fpga-image-id "afi-xxx" --attribute loadPermission --load-permission Add=[{Group=all}]
+```
 
 ### Testing on the FPGA ###
 
