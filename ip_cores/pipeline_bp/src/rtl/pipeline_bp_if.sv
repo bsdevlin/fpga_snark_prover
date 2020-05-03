@@ -35,13 +35,19 @@ generate
   if (NUM_STAGES == 0) begin
     
     always_comb begin
-      o_if.copy_if_comb(i_if.dat, i_if.val, i_if.sop, i_if.eop, i_if.err, i_if.mod, i_if.ctl);
+      o_if.dat = i_if.dat;
+      o_if.val = i_if.val;
+      o_if.sop = i_if.sop;
+      o_if.eop = i_if.eop;
+      o_if.err = i_if.err;
+      o_if.mod = i_if.mod;
+      o_if.ctl = i_if.ctl;
       i_if.rdy = o_if.rdy;
     end
     
   end else begin
     
-    if_axi_stream #(.DAT_BYTS(DAT_BYTS), .DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS)) if_stage [NUM_STAGES:0] (i_if.i_clk) ;
+    if_axi_stream #(.DAT_BYTS(DAT_BYTS), .DAT_BITS(DAT_BITS), .CTL_BITS(CTL_BITS)) if_stage [NUM_STAGES:0] (i_clk) ;
     
     for (g0 = 0; g0 < NUM_STAGES; g0++) begin : GEN_STAGE
       pipeline_bp_if_single #(
@@ -59,10 +65,22 @@ generate
     end
     
     always_comb begin
-      o_if.copy_if_comb(if_stage[NUM_STAGES].dat, if_stage[NUM_STAGES].val, if_stage[NUM_STAGES].sop, if_stage[NUM_STAGES].eop, if_stage[NUM_STAGES].err, if_stage[NUM_STAGES].mod, if_stage[NUM_STAGES].ctl);
+      o_if.dat = if_stage[NUM_STAGES].dat;
+      o_if.val = if_stage[NUM_STAGES].val;
+      o_if.sop = if_stage[NUM_STAGES].sop;
+      o_if.eop = if_stage[NUM_STAGES].eop;
+      o_if.err = if_stage[NUM_STAGES].err;
+      o_if.mod = if_stage[NUM_STAGES].mod;
+      o_if.ctl = if_stage[NUM_STAGES].ctl;
       if_stage[NUM_STAGES].rdy = o_if.rdy;
       
-      if_stage[0].copy_if_comb(i_if.dat, i_if.val, i_if.sop, i_if.eop, i_if.err, i_if.mod, i_if.ctl);
+      if_stage[0].dat = i_if.dat;
+      if_stage[0].val = i_if.val;
+      if_stage[0].sop = i_if.sop;
+      if_stage[0].eop = i_if.eop;
+      if_stage[0].err = i_if.err;
+      if_stage[0].mod = i_if.mod;
+      if_stage[0].ctl = i_if.ctl;
       i_if.rdy = if_stage[0].rdy;
     end
     

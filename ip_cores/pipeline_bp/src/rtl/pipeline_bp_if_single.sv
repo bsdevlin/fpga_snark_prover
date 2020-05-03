@@ -78,7 +78,7 @@ module pipeline_bp_if_single #(
         // Second case - second interface not valid
         end else begin
           o_if.dat <= i_if_int.dat;
-          o_if.val <= i_if_int.val;
+          o_if.val <= i_if_int.val && i_if_int.rdy;
           o_if.sop <= i_if_int.sop;
           o_if.eop <= i_if_int.eop;
           o_if.err <= i_if_int.err;
