@@ -365,7 +365,7 @@ generate
 endgenerate
 
 
-resource_share # (
+resource_share_bp # (
   .NUM_IN       ( 3          ),
   .DAT_BITS     ( 2*DAT_BITS ),
   .CTL_BITS     ( CTL_BITS   ),
@@ -373,7 +373,7 @@ resource_share # (
   .PIPELINE_IN  ( 1 ),
   .PIPELINE_OUT ( 1 )
 )
-resource_share_add (
+resource_share_bp_add (
   .i_clk ( i_clk ),
   .i_rst ( i_rst ),
   .i_axi ( add_if_o[2:0] ),
@@ -382,7 +382,7 @@ resource_share_add (
   .o_axi ( add_if_i[2:0] )
 );
 
-resource_share # (
+resource_share_bp # (
   .NUM_IN       ( 3          ),
   .DAT_BITS     ( 2*DAT_BITS ),
   .CTL_BITS     ( CTL_BITS   ),
@@ -390,7 +390,7 @@ resource_share # (
   .PIPELINE_IN  ( 1 ),
   .PIPELINE_OUT ( 1 )
 )
-resource_share_sub (
+resource_share_bp_sub (
   .i_clk ( i_clk ),
   .i_rst ( i_rst ),
   .i_axi ( sub_if_o[2:0] ),
