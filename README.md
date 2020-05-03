@@ -1,7 +1,7 @@
 FPGA SNARK prover targeting the bn128 curve.
 ======================
 
-This repo contains the results of an Ethereum grant into developing a FPGA SNARK prover. The project is still in progress.
+This repo contains the results of an Ethereum project into developing a FPGA SNARK prover (still in progress).
 
 ## Project goals ##
 
@@ -9,7 +9,7 @@ The goal of this project is to accelerate zk-SNARK proof creation by offloading 
  * FPGA acceleration of bn128 curve arithmetic
    - Implement base curve arithmetic in Montgomery form, kernel architecture
    - Implement G1 (Fp) & G2 (Fp2) point multiplication
-   - Implement architecture on AWS and show functionality with c++ API over PCIe
+   - Implement architecture on AWS and show functionality in the Vitis accelration framework
  * Multi exponentiation (multiexp) - implement G1_MULTIEXP and G2_MULTIEXP
    - Modify point multiplication architecture from #1 on FPGA utilizing some method to accelerate multiple parallel point multiplications (e.g. utilize window / NAF / pre calculation)
    - Implement G1_MULTIEXP
@@ -24,6 +24,8 @@ The goal of this project is to accelerate zk-SNARK proof creation by offloading 
 
 1. Clone this repo locally and include the RTL code into the top level for your board (only tested on Xilinx Ultrascale+ parts). Top level files are in fpga_snark_prover/src/rtl/.
 2. Run this on the Amazon AWS infrastructure. Instructions are in the example projects are [here](fpga_snark_prover/kernel/README.md).
+
+![FPGA top level](images/bn128_FPGA_SNARKER_prover_top.png)
 
 ## Folder structure ##
 
