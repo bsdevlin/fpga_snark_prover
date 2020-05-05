@@ -26,7 +26,7 @@ package bn128_pkg;
   localparam WINDOW_ENT = (1 << WINDOW_BITS) - 1;
   
   // These parameters change the size and performance of the multi_exp (G1) kernel
-  localparam NUM_G1_MULTIEXP_CORES = 8;
+  localparam NUM_G1_MULTIEXP_CORES = 16;
   localparam NUM_G1_MULTIEXP_ARITH = 1;
   
   // These parameters change the size and performance of the multi_exp (G2) kernel

@@ -91,6 +91,17 @@ ifeq ($(DEBUG),yes)
 	LDCLFLAGS += --dk chipscope:multiexp_g2_kernel_1 --xp "param:chipscope.enablePRFlow=true"
 endif
 
+#LDCLFLAGS += --xp "vivado_prop:run.impl_1.STEPS.PLACE_DESIGN.ARGS.DIRECTIVE=AltSpreadLogic_high"
+#LDCLFLAGS += --xp "vivado_prop:run.impl_1.STEPS.PHYS_OPT_DESIGN.IS_ENABLED=true"
+#LDCLFLAGS += --xp "vivado_prop:run.impl_1.STEPS.PHYS_OPT_DESIGN.ARGS.DIRECTIVE=AggressiveExplore"
+#LDCLFLAGS += --xp "vivado_prop:run.impl_1.STEPS.ROUTE_DESIGN.ARGS.DIRECTIVE=Explore"
+#LDCLFLAGS += --xp "vivado_prop:run.impl_1.STEPS.POST_ROUTE_PHYS_OPT_DESIGN.IS_ENABLED=true"
+#LDCLFLAGS += --xp "vivado_prop:run.impl_1.STEPS.POST_ROUTE_PHYS_OPT_DESIGN.ARGS.DIRECTIVE=Explore"
+#LDCLFLAGS += --xp "vivado_prop:run.synth_1.STEPS.SYNTH_DESIGN.ARGS.BUFG=0"
+LDCLFLAGS += --xp "vivado_prop:run.synth_1.STEPS.SYNTH_DESIGN.ARGS.FANOUT_LIMIT=1000"
+LDCLFLAGS += --xp "vivado_prop:run.impl_1.{STEPS.PLACE_DESIGN.ARGS.MORE OPTIONS}={-no_bufg_opt}"
+#LDCLFLAGS += --xp "param:logicopt.enableBUFGinsertCLK=0"
+
 CP = cp -rf
 
 .PHONY: all clean cleanall docs emconfig
@@ -111,7 +122,7 @@ $(TEMP_DIR)/$(KERNEL_NAME).xo: src/kernel.xml src/kernel.cfg scripts/package_ker
 # Building kernel
 $(BUILD_DIR)/$(KERNEL_NAME).xclbin: $(BINARY_CONTAINER_OBJS)
 	mkdir -p $(BUILD_DIR)
-	$(VPP) $(CLFLAGS) --temp_dir $(BUILD_DIR) -l $(LDCLFLAGS) -o'$@' $(+)
+	$(VPP) $(CLFLAGS) --temp_dir $(BUILD_DIR) -l $(LDCLFLAGS) -R2 -o'$@' $(+)
 
 # Building Host
 $(EXECUTABLE): check-xrt $(HOST_SRCS) $(HOST_HDRS)

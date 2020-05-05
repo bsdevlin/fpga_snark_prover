@@ -87,6 +87,9 @@ S3_BUCKET := your_bucket_name
 
 HDL_FILES := $(shell cat ./src/includes.txt)
 
+LDCLFLAGS += --xp "vivado_prop:run.synth_1.STEPS.SYNTH_DESIGN.ARGS.FANOUT_LIMIT=1000"
+LDCLFLAGS += --xp "vivado_prop:run.impl_1.{STEPS.PLACE_DESIGN.ARGS.MORE OPTIONS}={-no_bufg_opt}"
+
 ifeq ($(DEBUG),yes)
 	LDCLFLAGS += --dk chipscope:multiexp_g1_kernel_1 --xp "param:chipscope.enablePRFlow=true"
 endif
@@ -111,7 +114,7 @@ $(TEMP_DIR)/$(KERNEL_NAME).xo: src/kernel.xml src/kernel.cfg scripts/package_ker
 # Building kernel
 $(BUILD_DIR)/$(KERNEL_NAME).xclbin: $(BINARY_CONTAINER_OBJS)
 	mkdir -p $(BUILD_DIR)
-	$(VPP) $(CLFLAGS) --temp_dir $(BUILD_DIR) -l $(LDCLFLAGS) -o'$@' $(+)
+	$(VPP) $(CLFLAGS) --temp_dir $(BUILD_DIR) -l $(LDCLFLAGS) -R2 --optimize 3  -o'$@' $(+)
 
 # Building Host
 $(EXECUTABLE): check-xrt $(HOST_SRCS) $(HOST_HDRS)
