@@ -3,7 +3,7 @@ Multi-exponentiation in G1
 
  ## Architecture ##
 
-The top level architecture consists of control logic and log-n (we selected  n = 2) multiplexors and de-multiplexors for evenly distributing the input stream of data across the array of multiexp cores. Once each core has computed its result (a subset of the multiexp result), the points are collapsed within the core array into a single final result which is loaded back into DDR memory and can be read by the host. The algorithm used does not pre-compute as this was require too much memory on the FPGA. We use a batched method to calculate the multi-exponentiation which takes on average KEY_BITS (256) * NUM_IN iterations. This can be broken down into KEY_BITS point doubles and (KEY_BITS * NUM_IN * 0.5) point adds.
+The top level architecture consists of control logic and log-n (we selected  n = 2) multiplexors and de-multiplexors for evenly distributing the input stream of data across the array of multiexp cores. Once each core has computed its result (a subset of the multiexp result), the points are collapsed within the core array into a single final result which is loaded back into DDR memory and can be read by the host. The algorithm used does not pre-compute as this was require too much memory on the FPGA. We use a batched method to calculate the multi-exponentiation which takes on average KEY_BITS (256) * NUM_IN iterations. This can be broken down into KEY_BITS point doubles and (KEY_BITS * NUM_IN * 0.5) point adds. Currently the number of cores needs to be a power of two.
 
 ![Multiexp top architecture](../images/multi_exp_top_architecture.png)
 
@@ -34,3 +34,5 @@ Each multiexp core uses:
 | 19221 (0.81% | 16294 (1.38%) |
 
 ## Performance ##
+
+The measured performance of the kernel with 8 cores to performance a multi-exponentiation over 2^20 points and randomly generated scalars was 34s, 30.149K op/s.

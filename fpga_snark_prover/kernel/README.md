@@ -135,3 +135,8 @@ Calculates the G2 or G1 multi-exponentiation.  At the moment there is a limitati
 
 ### Top ###
 This builds all the kernels into a single FPGA image that can use one of each of the kernels. IN PROGRESS
+
+### Areas for improvement ###
+* Make it so the the multi-exp cores do not have to be a power of two.
+* Allow for number of cores in a kernel to be read from host.
+* Pipeline multiplier to get a higher frequency.
