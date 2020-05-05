@@ -35,4 +35,4 @@ Each multiexp core uses:
 
 ## Performance ##
 
-The measured performance of the kernel with 8 cores to performance a multi-exponentiation over 2^20 points and randomly generated scalars was 34s, 30.149K op/s.
+The measured performance of the kernel with 8 cores to performance a multi-exponentiation in G1 over 2^20 points and randomly generated scalars was 34s, 30.149K op/s, or 3.769K op/s/core. 

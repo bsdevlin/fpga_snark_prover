@@ -7,16 +7,18 @@ Please refer to the multiexp_g1 architecture description as the multiexp_g2 kern
 
 ## Area utilization ##
 
-The kernel was able to operate at 250MHz with 8 cores. The top level (including multiplier and kernel glue logic) used the following resources:
+The kernel was able to operate at 250MHz with 4 cores. The top level (including multiplier and kernel glue logic) used the following resources:
 
 | FF |  LUT | DSP| 
 | --- | --- | --- |
-| 379269 (16.04%) | 267207 (22.60%) | 480 (7.02%) |
+| 226590 (9.58%) | 166786 (14.11%) | 480 (7.02%) |
 
-Each multiexp core uses:
+Each multiexp G2 core uses:
 
 | FF |  LUT |  
 | --- | --- | 
 | 34310 (1.45%) | 25876 (2.19%) |
 
 ## Performance ##
+
+The measured performance of the kernel with 8 cores to performance a multi-exponentiation in G2 over 2^20 points and randomly generated scalars was 85s, 12.314K op/s, or 3.089K op/s/core. 
