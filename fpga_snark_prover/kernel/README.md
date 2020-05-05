@@ -141,5 +141,5 @@ This builds all the kernels into a single FPGA image that can use one of each of
 * Allow for number of cores in a kernel to be read from host.
 * Multiplier improvements
     * Pipeline multiplier to get a higher frequency.
-    * We implemented a basic Montgomery multiplication without any FPGA optimizations so that it would be compatible with existing solvers. We could get around ~20% improvement by using Barrets algorithm or modifying bit width to remove the final check and subtraction.
+    * We implemented a basic Montgomery multiplication without any FPGA optimizations so that it would be compatible with existing solvers. We could get around ~20% improvement by using Barrets algorithm or modifying bit width to remove the final check and subtraction. Currently the Montgomery multiplier completes one operation in 39 clock cycles at 250MHz, so 159ns latency for one Montgomery multiplication, but capable of 39 multiplications during this time so ~245M op/s.
     * Implement a redundant bit system through the Multiplier.
