@@ -113,7 +113,7 @@ tar -xvf to_f1.tar.gz
 ```
 
 ##  Kernel overview ##
-###  Multiexp_g1 ###
+###  [Multiexp_g1](multiexp_g1/) ###
 Calculates the G1 multi-exponentiation. At the moment there is a limitation that the number of input points must be a multiple of the number of cores, so please load zero points if this is not the case.
 
 | # | Argument | Type | Notes |
@@ -123,7 +123,7 @@ Calculates the G1 multi-exponentiation. At the moment there is a limitation that
 | 2 | scalar_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_READ_ONLY  | The pointer to memory of 256 bit scalars. |
 | 3 | result_p  | cl::Buffer with CL_MEM_USE_HOST_PTR, CL_MEM_WRITE_ONLY  | The pointer to memory to write the resulting G1 Montgomery form jacobian point coordinates. |
 
-###  Multiexp_g2 ###
+###  [Multiexp_g2](multiexp_g2/) ###
 Calculates the G2 or G1 multi-exponentiation.  At the moment there is a limitation that the number of input points must be a multiple of the number of cores, so please load zero points if this is not the case.
 
 | # | Argument | Type | Notes |
