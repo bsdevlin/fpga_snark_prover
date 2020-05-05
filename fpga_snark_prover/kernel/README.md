@@ -139,4 +139,7 @@ This builds all the kernels into a single FPGA image that can use one of each of
 ### Areas for improvement ###
 * Make it so the the multi-exp cores do not have to be a power of two.
 * Allow for number of cores in a kernel to be read from host.
-* Pipeline multiplier to get a higher frequency.
+* Multiplier improvements
+    * Pipeline multiplier to get a higher frequency.
+    * We implemented a basic Montgomery multiplication without any FPGA optimizations so that it would be compatible with existing solvers. We could get around ~20% improvement by using Barrets algorithm or modifying bit width to remove the final check and subtraction.
+    * Implement a redundant bit system through the Multiplier.
