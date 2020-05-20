@@ -40,6 +40,7 @@ The shared folder contains bn128.hpp which has functions required to format data
 
 If you just want to test a pre-built .awsxclbin file (this is a file which points to a pre-build FPGA image (AFI), and contains a compiled host executable) you can skip this section and go to "Testing on the FPGA".
 
+Note: When starting the AWS instance (both for building from source and testing on the FPGA), you need to use the free [AWS FPGA Developer AMI](https://aws.amazon.com/marketplace/pp/Amazon-Web-Services-FPGA-Developer-AMI/B06VVYBLZZ) so that you have access to the ocl drivers. At the time of writing I used 1.8.0. 
 ### Building from source ###
 
 1. Start a AWS instance that can be used to build the FPGA code from source. I usually use a z1d.2xlarge instance. Make sure it is in the same region as where your S3 bucket and where you want to test. I usually pick us-east-1.
