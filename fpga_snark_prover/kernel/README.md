@@ -18,7 +18,7 @@ The **hw_emu** target create a ``build_output/<kernel_name>.xclbin`` file and ru
 The **hw** target will build the ``build_output/<kernel_name>.xclbin`` and ``.awsxclbin`` file which is used to create an AFI for use on Amazon AWS F1 instances with real hardware. This takes around 4 hours to build.
 
 This document goes over the accelerator platform and different configuration settings you can change in the kernel.cfg file: [Vitis Unified Software
-Platform Documentation](https://www.xilinx.com/support/documentation/sw_manuals/xilinx2019_2/ug1393-vitis-application-acceleration.pdf). The offical Vitis github is [here]For more information please see [here](https://github.com/aws/aws-fpga/tree/master/Vitis).
+Platform Documentation](https://www.xilinx.com/support/documentation/sw_manuals/xilinx2019_2/ug1393-vitis-application-acceleration.pdf). For more information please see [here](https://github.com/aws/aws-fpga/tree/master/Vitis).
 
 Each kernel folder contains the following files:
 
@@ -41,9 +41,11 @@ The shared folder contains bn128.hpp which has functions required to format data
 If you just want to test a pre-built .awsxclbin file (this is a file which points to a pre-build FPGA image (AFI), and contains a compiled host executable) you can skip this section and go to "Testing on the FPGA".
 
 Note: When starting the AWS instance (both for building from source and testing on the FPGA), you need to use the free [AWS FPGA Developer AMI](https://aws.amazon.com/marketplace/pp/Amazon-Web-Services-FPGA-Developer-AMI/B06VVYBLZZ) so that you have access to the ocl drivers. At the time of writing I used 1.8.0. 
+
 ### Building from source ###
 
-1. Start a AWS instance that can be used to build the FPGA code from source. I usually use a z1d.2xlarge instance. Make sure it is in the same region as where your S3 bucket and where you want to test. I usually pick us-east-1.
+1. Start a AWS instance that can be used to build the FPGA code from source. I usually use a z1d.2xlarge instance. Make sure it is in the same region as where your S3 bucket and where you want to test. I usually pick us-east-1. The builds can take up a bit of space, I usually make sure I have around 100GB free.
+
 2. Log into the instance and clone this github repo, and make sure the submodules are updated.
 ```
 git clone --recurse-submodules https://github.com/bsdevlin/fpga_snark_prover.git
